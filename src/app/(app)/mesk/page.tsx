@@ -2,7 +2,9 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { requireUser } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
-import { GRADES, getUnits } from '@/lib/catalog';
+import { redirect } from 'next/navigation';
+import { MESK_GRADES, isMeskGrade, getUnits } from '@/lib/catalog';
+import { isStaff } from '@/lib/auth';
 import { MathText } from '@/components/MathText';
 
 export const metadata: Metadata = { title: 'МЭСК тапсырмалар банкі' };
@@ -13,7 +15,9 @@ const PER_PAGE = 20;
 export default async function MeskBankPage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
   const profile = await requireUser();
-  const grade = Number(sp.grade) || profile.current_grade || 7;
+  if (!isStaff(profile) && !isMeskGrade(profile.current_grade)) redirect('/dashboard');
+  const want = Number(sp.grade) || profile.current_grade || 10;
+  const grade = isMeskGrade(want) ? want : 10;
   const page = Math.max(1, Number(sp.page) || 1);
   const units = await getUnits(grade);
   const supabase = await createClient();
@@ -43,7 +47,7 @@ export default async function MeskBankPage({ searchParams }: { searchParams: Pro
 
       <form className="card grid grid-cols-2 gap-2 sm:grid-cols-5" action="/mesk">
         <select name="grade" defaultValue={grade} className="input" aria-label="Сынып">
-          {GRADES.map((g) => <option key={g} value={g}>{g}-сынып</option>)}
+          {MESK_GRADES.map((g) => <option key={g} value={g}>{g}-сынып</option>)}
         </select>
         <select name="unit" defaultValue={sp.unit ?? ''} className="input sm:col-span-2" aria-label="Бөлім">
           <option value="">Барлық бөлім</option>

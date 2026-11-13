@@ -30,7 +30,7 @@ export type PracticeGenerateInput = z.infer<typeof practiceGenerateSchema>;
 
 export const meskMockSchema = z
   .object({
-    grade,
+    grade: grade.refine((g) => g === 10 || g === 12, { message: 'МЭСК тек 10 және 12-сыныптарға арналған' }),
     component: z.string().max(40).optional(),
     unit_ids: z.array(uuid).max(20).default([]),
     blueprint_id: uuid.optional(),

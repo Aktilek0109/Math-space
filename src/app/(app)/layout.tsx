@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requireUser, isStaff } from '@/lib/auth';
 import { LogoutButton } from '@/components/LogoutButton';
+import { isMeskGrade } from '@/lib/catalog';
 
 const NAV = [
   { href: '/dashboard', label: 'Басты бет' },
@@ -12,7 +13,9 @@ const NAV = [
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await requireUser();
-  const items = isStaff(profile) ? [...NAV, { href: '/admin', label: 'Басқару' }] : NAV;
+  const staff = isStaff(profile);
+  const nav = NAV.filter((i) => i.href !== '/mesk' || staff || isMeskGrade(profile.current_grade));
+  const items = staff ? [...nav, { href: '/admin', label: 'Басқару' }] : nav;
 
   return (
     <div className="min-h-dvh">

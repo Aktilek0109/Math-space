@@ -70,7 +70,7 @@ export function MockBuilder({ units, blueprints, defaultGrade }: { units: Unit[]
           <div>
             <label className="label" htmlFor="grade">Сынып</label>
             <select id="grade" className="input" value={grade} onChange={(e) => { setGrade(Number(e.target.value)); setSelected([]); setSource('custom'); }}>
-              {[7, 8, 9, 10, 11, 12].map((g) => <option key={g} value={g}>{g}-сынып</option>)}
+              {[10, 12].map((g) => <option key={g} value={g}>{g}-сынып</option>)}
             </select>
           </div>
           <div>

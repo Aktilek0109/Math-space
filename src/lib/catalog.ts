@@ -2,6 +2,9 @@ import 'server-only';
 import { createClient } from './supabase/server';
 
 export const GRADES = [7, 8, 9, 10, 11, 12] as const;
+/** МЭСК тек осы сыныптарға арналған */
+export const MESK_GRADES = [10, 12] as const;
+export const isMeskGrade = (g: number | null | undefined) => g === 10 || g === 12;
 
 export const MATERIAL_TYPES: Record<string, string> = {
   presentation: 'Презентация',

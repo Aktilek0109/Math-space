@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { requireUser } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { GRADES, EXAM_LABEL } from '@/lib/catalog';
+import { isMeskGrade } from '@/lib/catalog';
 
 export const metadata: Metadata = { title: 'Басты бет' };
 
@@ -80,7 +81,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           {(sessions ?? []).length === 0 ? (
             <div className="flex flex-wrap gap-2">
               <Link href="/practice" className="btn btn-primary">БЖБ/ТЖБ дайындығы</Link>
-              <Link href="/mesk/mock/new" className="btn btn-secondary">МЭСК пробный</Link>
+              {(isMeskGrade(profile.current_grade) || profile.role !== 'student') && <Link href="/mesk/mock/new" className="btn btn-secondary">МЭСК пробный</Link>}
             </div>
           ) : (
             <ul className="space-y-2 text-sm">
