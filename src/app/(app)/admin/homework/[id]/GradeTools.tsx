@@ -122,3 +122,115 @@ export function ExportZip({ id }: { id: string }) {
     </span>
   );
 }
+
+export interface AiResult {
+  status: 'pending' | 'done' | 'error' | 'quota' | 'skipped';
+  score: number | null;
+  feedback: string | null;
+  details: { items?: { n?: string; student?: string; correct?: boolean; note?: string }[]; readable?: boolean; raw?: string } | null;
+  error: string | null;
+  model: string | null;
+  neurons: number | null;
+}
+
+/** Тексерілмеген жұмыстардың бәрін AI-мен тексеру */
+export function AiCheckAll({ id }: { id: string }) {
+  const router = useRouter();
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function run() {
+    setBusy(true);
+    setMsg('Тексерілуде… (бір жұмысқа 5–15 секунд)');
+    const r = await apiFetch<{ counts: Record<string, number>; left: number; total: number }>(`/api/admin/homework/${id}/ai`, { method: 'POST', json: {} });
+    setBusy(false);
+    if (!r.ok) return setMsg(failureText(r.failure).join(' '));
+    const c = r.data.counts;
+    if (!r.data.total) setMsg('Тексерілмеген жұмыс жоқ.');
+    else setMsg(`Дайын: ${c.done ?? 0}${c.error ? ` · қате: ${c.error}` : ''}${c.skipped ? ` · сурет емес: ${c.skipped}` : ''}${c.quota ? ' · бүгінгі лимит бітті' : ''}${r.data.left ? ` · қалды: ${r.data.left} (тағы басыңыз)` : ''}`);
+    router.refresh();
+  }
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      <button type="button" onClick={run} disabled={busy} className="btn btn-secondary">{busy ? 'Тексерілуде…' : '🤖 Тексерілмегендерді AI-мен тексеру'}</button>
+      {msg && <span className="text-sm text-slate-600">{msg}</span>}
+    </span>
+  );
+}
+
+/** Бір оқушы жұмысының AI ұсынысы: қабылдау / қайта тексеру */
+export function AiBox(props: { assignmentId: string; studentId: string; max: number; ai: AiResult | null; graded: boolean }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState<'' | 'accept' | 'recheck'>('');
+  const [err, setErr] = useState('');
+  const ai = props.ai;
+
+  async function recheck() {
+    setBusy('recheck'); setErr('');
+    const r = await apiFetch(`/api/admin/homework/${props.assignmentId}/ai`, { method: 'POST', json: { student_id: props.studentId } });
+    setBusy('');
+    if (!r.ok) setErr(failureText(r.failure).join(' '));
+    router.refresh();
+  }
+  async function accept() {
+    if (!ai) return;
+    setBusy('accept'); setErr('');
+    const r = await apiFetch(`/api/admin/homework/${props.assignmentId}/grade`, {
+      method: 'POST',
+      json: { student_id: props.studentId, score: ai.score, feedback: ai.feedback ?? '' },
+    });
+    setBusy('');
+    if (!r.ok) return setErr(failureText(r.failure).join(' '));
+    router.refresh();
+  }
+
+  const recheckBtn = (
+    <button type="button" onClick={recheck} disabled={!!busy} className="text-xs text-brand-600 hover:underline">
+      {busy === 'recheck' ? 'тексерілуде…' : ai?.status === 'done' ? 'қайта тексеру' : 'AI-мен тексеру'}
+    </button>
+  );
+
+  if (!ai || ai.status === 'pending') {
+    return (
+      <div className="rounded-lg bg-slate-50 p-2 text-sm text-slate-600">
+        🤖 {ai ? 'AI тексеріп жатыр… (бетті жаңартыңыз)' : 'AI әлі тексермеген.'} {recheckBtn}
+        {err && <div className="text-red-700">{err}</div>}
+      </div>
+    );
+  }
+  if (ai.status !== 'done') {
+    return (
+      <div className="rounded-lg bg-amber-50 p-2 text-sm text-amber-900">
+        🤖 {ai.error ?? 'Тексерілмеді'} {ai.status !== 'skipped' && recheckBtn}
+        {err && <div className="text-red-700">{err}</div>}
+      </div>
+    );
+  }
+  const items = ai.details?.items ?? [];
+  return (
+    <div className="space-y-1 rounded-lg bg-violet-50 p-2 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <span>🤖 AI ұсынысы: <b>{ai.score == null ? '—' : `${Number(ai.score)} / ${props.max}`}</b></span>
+        {ai.details?.readable === false && <span className="chip bg-amber-100 text-amber-800">сурет анық емес</span>}
+        {ai.score != null && (
+          <button type="button" onClick={accept} disabled={!!busy} className="btn btn-primary px-3 py-1 text-xs">
+            {busy === 'accept' ? '…' : props.graded ? 'Ұсынысты қайта қою' : '✓ Қабылдау'}
+          </button>
+        )}
+        {recheckBtn}
+      </div>
+      {ai.feedback && <p className="text-slate-700">{ai.feedback}</p>}
+      {items.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {items.map((it, i) => (
+            <span key={i} title={[it.student && `Оқушы: ${it.student}`, it.note].filter(Boolean).join(' — ')}
+              className={`chip ${it.correct ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+              №{it.n ?? i + 1} {it.correct ? '✓' : '✗'}{it.student ? ` ${String(it.student).slice(0, 24)}` : ''}
+            </span>
+          ))}
+        </div>
+      )}
+      <p className="text-xs text-slate-500">AI қателесуі мүмкін, суретпен салыстырып шығыңыз.</p>
+      {err && <div className="text-red-700">{err}</div>}
+    </div>
+  );
+}

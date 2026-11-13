@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assignmentStudents, fmtDue, isLate } from '@/lib/homework';
-import { GradeRow, ImportGrades, DeleteAssignment, ExportZip } from './GradeTools';
+import { GradeRow, ImportGrades, DeleteAssignment, ExportZip, AiCheckAll, AiBox, type AiResult } from './GradeTools';
+import { AI_DAILY_FREE, aiConfigured, aiUsageToday } from '@/lib/ai-check';
 
 export default async function AdminHomeworkItem({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -15,18 +16,23 @@ export default async function AdminHomeworkItem({ params }: { params: Promise<{ 
     .eq('id', id)
     .maybeSingle();
   if (!a) notFound();
-  const [{ data: key }, students, { data: subs }] = await Promise.all([
+  const [{ data: key }, students, { data: subs }, usage] = await Promise.all([
     admin.from('assignment_keys').select('answer_text').eq('assignment_id', id).maybeSingle(),
     assignmentStudents(admin, a),
     admin
       .from('submissions')
-      .select('student_id, submitted_at, comment, score, feedback, graded_at, submission_files(id, mime_type, original_name, position)')
+      .select('id, student_id, submitted_at, comment, score, feedback, graded_at, submission_files(id, mime_type, original_name, position), submission_ai(status, score, feedback, details, error, model, neurons)')
       .eq('assignment_id', id),
+    aiUsageToday(admin),
   ]);
   type Sub = {
     student_id: string; submitted_at: string | null; comment: string; score: number | null; feedback: string | null; graded_at: string | null;
     submission_files: { id: string; mime_type: string; original_name: string; position: number }[];
+    submission_ai: AiResult | AiResult[] | null;
   };
+  const aiOf = (s?: Sub) => (s ? (Array.isArray(s.submission_ai) ? s.submission_ai[0] ?? null : s.submission_ai) : null);
+  const aiOn = aiConfigured();
+  const pct = Math.round((usage.neurons / AI_DAILY_FREE) * 100);
   const byStudent = new Map(((subs ?? []) as Sub[]).map((s) => [s.student_id, s]));
   const sent = students.filter((s) => byStudent.get(s.id)?.submitted_at).length;
   const graded = students.filter((s) => byStudent.get(s.id)?.graded_at).length;
@@ -55,6 +61,25 @@ export default async function AdminHomeworkItem({ params }: { params: Promise<{ 
           </details>
         )}
       </header>
+
+      <section className="card space-y-2">
+        <h2 className="font-semibold">AI алдын ала тексеру (тегін)</h2>
+        {aiOn ? (
+          <>
+            <p className="text-sm text-slate-600">
+              Оқушы фото салғанда AI жауаптарды кілтпен салыстырып, баға ұсынады. Оқушы бағаны сіз растағаннан кейін ғана көреді.
+              Нақтырақ болу үшін тапсырма бергенде жауап кілтін жазыңыз.
+            </p>
+            <div className="text-sm">
+              Бүгінгі тегін лимит: <b>{usage.neurons}</b> / {AI_DAILY_FREE} нейрон ({pct}%) · {usage.calls} тексеру · Алматы уақытымен таңғы 5-те жаңарады
+              <div className="mt-1 h-2 w-full max-w-md rounded bg-slate-100"><div className={`h-2 rounded ${pct > 85 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${Math.min(100, pct)}%` }} /></div>
+            </div>
+            <AiCheckAll id={a.id} />
+          </>
+        ) : (
+          <p className="text-sm text-slate-600">Қосылмаған. Vercel → Settings → Environment Variables бөліміне <code>CF_ACCOUNT_ID</code> және <code>CF_AI_TOKEN</code> қосып, Redeploy жасаңыз.</p>
+        )}
+      </section>
 
       <section className="card space-y-2">
         <h2 className="font-semibold">Claude-пен тексеру</h2>
@@ -106,6 +131,7 @@ export default async function AdminHomeworkItem({ params }: { params: Promise<{ 
                 </div>
               )}
               {s?.comment && <p className="text-sm text-slate-600">Оқушы пікірі: {s.comment}</p>}
+              {aiOn && s?.submitted_at && <AiBox assignmentId={a.id} studentId={st.id} max={Number(a.max_score)} ai={aiOf(s)} graded={!!s.graded_at} />}
               <GradeRow assignmentId={a.id} studentId={st.id} max={Number(a.max_score)} score={s?.score ?? null} feedback={s?.feedback ?? ''} graded={!!s?.graded_at} />
             </div>
           );

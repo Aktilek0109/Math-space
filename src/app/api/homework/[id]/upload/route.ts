@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import { after } from 'next/server';
+import { aiConfigured, checkSubmission } from '@/lib/ai-check';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ApiError, apiUser, handler, json, parseBody } from '@/lib/api';
@@ -21,6 +23,8 @@ const body = z.discriminatedUnion('action', [
   z.object({ action: z.literal('finalize'), comment: z.string().max(1000).optional(), files: z.array(fileMeta.extend({ path: z.string().min(5).max(400) })).max(HW_MAX_FILES) }),
   z.object({ action: z.literal('remove'), file_id: z.string().uuid() }),
 ]);
+
+export const maxDuration = 60;
 
 export const POST = handler(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
   const profile = await apiUser(['student']);
@@ -85,5 +89,11 @@ export const POST = handler(async (req: Request, ctx: { params: Promise<{ id: st
     .from('submissions')
     .update({ submitted_at: (count ?? 0) > 0 ? new Date().toISOString() : null, ...(input.comment !== undefined ? { comment: input.comment } : {}) })
     .eq('id', subId);
+  // AI алдын ала тексеру — жауап қайтарылғаннан кейін фонда
+  if ((count ?? 0) > 0 && aiConfigured()) {
+    const sid = subId;
+    await admin.from('submission_ai').upsert({ submission_id: sid, status: 'pending', updated_at: new Date().toISOString() }, { onConflict: 'submission_id' });
+    after(() => checkSubmission(admin, sid).then(() => undefined));
+  }
   return json({ ok: true });
 });
