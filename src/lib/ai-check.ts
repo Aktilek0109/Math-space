@@ -63,20 +63,24 @@ async function callModel(model: string, messages: unknown[]) {
   const res = await fetch(url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${process.env.CF_AI_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, messages, max_tokens: 900, temperature: 0.1 }),
+    body: JSON.stringify({ model, messages, max_tokens: 2500, temperature: 0.1, chat_template_kwargs: { enable_thinking: false } }),
   });
   const raw = await res.text();
   if (!res.ok) {
     if (res.status === 429 || /allocation|quota|neurons|3036/i.test(raw)) throw new QuotaError(raw.slice(0, 300));
     throw new Error(`HTTP ${res.status}: ${raw.slice(0, 300)}`);
   }
-  const data = JSON.parse(raw) as { choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } };
-  const text = data.choices?.[0]?.message?.content ?? '';
+  type Msg = { content?: string | { type?: string; text?: string }[] | null; reasoning_content?: string | null; reasoning?: string | null };
+  const data = JSON.parse(raw) as { choices?: { message?: Msg }[]; response?: string; usage?: { prompt_tokens?: number; completion_tokens?: number } };
+  const m = data.choices?.[0]?.message;
+  const content = Array.isArray(m?.content) ? m.content.map((c) => c?.text ?? '').join('') : (m?.content ?? data.response ?? '');
+  // «Ойланатын» модельдерде JSON кейде reasoning өрісінде қалады
+  const text = content.includes('{') ? content : [content, m?.reasoning_content, m?.reasoning].filter(Boolean).join('\n');
   const inTok = data.usage?.prompt_tokens ?? 3000;
   const outTok = data.usage?.completion_tokens ?? Math.ceil(text.length / 3);
   const [ri, ro] = RATES[model] ?? RATES[FALLBACK];
   const neurons = Math.ceil((inTok * ri + outTok * ro) / 1_000_000);
-  return { text, neurons };
+  return { text, neurons, raw: raw.slice(0, 1500) };
 }
 
 /** Бір жұмысты тексеру. Ешқашан лақтырмайды — нәтиже submission_ai-ға жазылады. */
@@ -137,7 +141,7 @@ export async function checkSubmission(admin: SupabaseClient, submissionId: strin
 
     await save(admin, submissionId, { status: 'pending', error: null });
     let model = process.env.CF_AI_MODEL || PRIMARY;
-    let out: { text: string; neurons: number };
+    let out: { text: string; neurons: number; raw: string };
     try {
       out = await callModel(model, messages);
     } catch (e) {
@@ -147,9 +151,16 @@ export async function checkSubmission(admin: SupabaseClient, submissionId: strin
     }
     await admin.rpc('ai_usage_add', { p_neurons: out.neurons });
 
-    const j = parseJson(out.text);
+    let j = parseJson(out.text);
+    if (!j && model !== FALLBACK) {
+      // негізгі модель бос/түсініксіз жауап берсе — екінші модельмен бір рет
+      model = FALLBACK;
+      out = await callModel(model, messages);
+      await admin.rpc('ai_usage_add', { p_neurons: out.neurons });
+      j = parseJson(out.text);
+    }
     if (!j) {
-      await save(admin, submissionId, { status: 'error', model, neurons: out.neurons, error: 'AI жауабы түсініксіз', details: { raw: out.text.slice(0, 2000) } });
+      await save(admin, submissionId, { status: 'error', model, neurons: out.neurons, error: 'AI жауабы түсініксіз', details: { raw: out.text.slice(0, 1500) || out.raw } });
       return 'error';
     }
     let score = typeof j.score === 'number' && Number.isFinite(j.score) ? Math.max(0, Math.min(max, j.score)) : null;
