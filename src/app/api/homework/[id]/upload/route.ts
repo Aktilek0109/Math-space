@@ -45,7 +45,7 @@ export const POST = handler(async (req: Request, ctx: { params: Promise<{ id: st
   if (input.action === 'prepare') {
     const have = sub?.submission_files.length ?? 0;
     if (have + input.files.length > HW_MAX_FILES) throw new ApiError(400, `Барлығы ${HW_MAX_FILES} файлдан аспауы керек (қазір ${have}).`);
-    const out = [];
+    const out: { path: string; token: string }[] = [];
     for (const f of input.files) {
       const path = `${a.grade}/${id}/${profile.id}/${randomUUID()}.${HW_MIME[f.mime]}`;
       const { data, error } = await admin.storage.from('homework').createSignedUploadUrl(path);
