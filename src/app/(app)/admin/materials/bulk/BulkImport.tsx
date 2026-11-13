@@ -45,6 +45,7 @@ function parse(files: FileList): { rows: Row[]; ignored: string[] } {
     const ext = (name.split('.').pop() || '').toLowerCase();
     if (parts.some((p) => HIDE.some((h) => p.startsWith(h)))) return ignored.push(file.webkitRelativePath + ' (жасырын/ҚМЖ)');
     if (!MIME[ext]) return ignored.push(file.webkitRelativePath + ' (түрі қолдау көрмейді)');
+    if (file.size === 0) return ignored.push(file.webkitRelativePath + ' (бос файл — zip-ті толық шығарыңыз: «Извлечь все»)');
     if (file.size > 30 * 1024 * 1024) return ignored.push(file.webkitRelativePath + ' (30 МБ-тан үлкен)');
     // Сынып сегментін табу: «9 сынып», «9-сынып», «9»
     const gi = parts.findIndex((p) => /^(7|8|9|10|11|12)(\s|-|$)/.test(p) && /сынып|^\d+$/i.test(p));
