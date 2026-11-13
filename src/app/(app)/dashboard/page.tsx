@@ -4,6 +4,8 @@ import { requireUser } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { GRADES, EXAM_LABEL } from '@/lib/catalog';
 import { isMeskGrade } from '@/lib/catalog';
+import { LESSON_SELECT, todayAlmaty, fmtDay, type LessonRow } from '@/lib/lessons';
+import { LessonItem } from '@/components/LessonList';
 
 export const metadata: Metadata = { title: 'Басты бет' };
 
@@ -12,7 +14,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const profile = await requireUser();
   const supabase = await createClient();
 
-  const [{ data: recent }, { data: sessions }] = await Promise.all([
+  const today = todayAlmaty();
+  const [{ data: recent }, { data: sessions }, { data: lastLessons }] = await Promise.all([
     supabase
       .from('material_views')
       .select('viewed_at, materials(id, title, grade)')
@@ -25,7 +28,11 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       .eq('owner_id', profile.id)
       .order('created_at', { ascending: false })
       .limit(5),
+    supabase.from('lessons').select(LESSON_SELECT).lte('lesson_date', today).order('lesson_date', { ascending: false }).order('created_at').limit(6),
   ]);
+  const ll = (lastLessons ?? []) as unknown as LessonRow[];
+  const lessonDay = ll[0]?.lesson_date;
+  const dayLessons = profile.role === 'student' && lessonDay ? ll.filter((l) => l.lesson_date === lessonDay) : [];
 
   const unfinished = (sessions ?? []).find((s) => s.status === 'in_progress');
 
@@ -36,6 +43,16 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <h1 className="text-2xl font-semibold">Сәлем, {profile.full_name || profile.username}!</h1>
         <p className="text-slate-600">Сынып таңдаңыз — барлық жарияланған материалдар ашық.</p>
       </section>
+
+      {dayLessons.length > 0 && (
+        <section className="card space-y-2 border-brand-500">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-semibold">{lessonDay === today ? 'Бүгінгі сабақ' : `Соңғы сабақ · ${fmtDay(lessonDay!)}`}</h2>
+            <Link href="/lessons" className="text-sm text-brand-600 hover:underline">Барлық сабақтар →</Link>
+          </div>
+          {dayLessons.map((l) => <LessonItem key={l.id} l={l} />)}
+        </section>
+      )}
 
       <section aria-labelledby="grades" className="grid grid-cols-3 gap-3 sm:grid-cols-6">
         <h2 id="grades" className="sr-only">Сыныптар</h2>

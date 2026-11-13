@@ -5,6 +5,7 @@ import { isMeskGrade } from '@/lib/catalog';
 
 const NAV = [
   { href: '/dashboard', label: 'Басты бет' },
+  { href: '/lessons', label: 'Сабақтар' },
   { href: '/library', label: 'Кітапхана' },
   { href: '/homework', label: 'Үй жұмысы' },
   { href: '/practice', label: 'БЖБ/ТЖБ' },
