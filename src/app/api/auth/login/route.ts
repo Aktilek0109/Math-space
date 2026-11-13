@@ -5,9 +5,9 @@ import { ApiError, handler, json, parseBody, audit } from '@/lib/api';
 import { loginSchema } from '@/lib/validation';
 import { normalizeUsername, usernameToEmail } from '@/lib/auth';
 
-const WINDOW_MIN = 15;
-const MAX_FAILS_PER_USER = 5;
-const MAX_FAILS_PER_IP = 30;
+const WINDOW_MIN = 5;
+const MAX_FAILS_PER_USER = 10;
+const MAX_FAILS_PER_IP = 50;
 const GENERIC = 'Логин немесе пароль қате';
 
 export const POST = handler(async (req: Request) => {
