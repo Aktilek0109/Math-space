@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { MATERIAL_TYPES } from '@/lib/catalog';
+import { PdfViewer } from '@/components/PdfViewer';
 
 const PREVIEWABLE = ['application/pdf', 'image/png', 'image/jpeg'];
 
@@ -52,9 +53,9 @@ export default async function MaterialPage({ params }: { params: Promise<{ id: s
       )}
 
       {first && (
-        <section className="card p-0">
+        <section className={first.mime_type === 'application/pdf' ? 'card bg-slate-50' : 'card p-0'}>
           {first.mime_type === 'application/pdf' ? (
-            <iframe title={first.original_name} src={`/api/library/${m.id}/file?asset=${first.id}`} className="h-[75vh] w-full rounded-xl" />
+            <PdfViewer title={first.original_name} src={`/api/library/${m.id}/file?asset=${first.id}`} />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={`/api/library/${m.id}/file?asset=${first.id}`} alt={first.original_name} className="mx-auto max-h-[75vh] rounded-xl" />
