@@ -148,7 +148,7 @@ export function UsersPanel({ users, meId }: { users: User[]; meId: string }) {
             {users.map((u) => (
               <tr key={u.id} className="border-t border-slate-100">
                 <td className="p-2 font-mono">{u.username}</td>
-                <td className="p-2">{u.full_name}</td>
+                <td className="p-2">{u.role === 'student' ? <a href={`/profile?u=${u.id}`} className="text-brand-600 hover:underline">{u.full_name || '—'}</a> : u.full_name}</td>
                 <td className="p-2">{ROLE[u.role]}</td>
                 <td className="p-2">{u.current_grade ?? '—'}</td>
                 <td className="p-2">{u.is_active ? (u.must_change_password ? 'кірмеген' : 'белсенді') : <span className="text-red-700">бұғатталған</span>}</td>

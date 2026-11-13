@@ -34,7 +34,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             ))}
           </nav>
           <div className="flex items-center gap-2 text-sm">
-            <span className="hidden text-slate-500 md:inline">{profile.full_name || profile.username}</span>
+            <Link href="/profile" className="flex items-center gap-2 rounded-md px-2 py-1 text-slate-600 hover:bg-slate-100" title="Профиль">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
+                {(profile.full_name || profile.username).split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('')}
+              </span>
+              <span className="hidden md:inline">{profile.full_name || profile.username}</span>
+            </Link>
             <LogoutButton />
           </div>
         </div>
