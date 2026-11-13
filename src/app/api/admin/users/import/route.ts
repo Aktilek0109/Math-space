@@ -49,14 +49,17 @@ export const POST = handler(async (req: Request) => {
     if (!p.res.success) continue;
     const out = await createAccount(p.res.data);
     results.push({ line: p.line, ...out });
-    const raw = rows[p.line - 2] as { class_name?: unknown };
-    const cname = typeof raw?.class_name === 'string' && /^(7|8|9|10|11|12)\S$/u.test(raw.class_name) ? raw.class_name : null;
-    if (!cname || !p.res.data.grade) continue;
+    if (!p.res.data.grade) continue;
     let uid = out.ok ? out.id : undefined;
     if (!uid) {
       const { data: prof } = await admin.from('profiles').select('id').eq('username', p.res.data.username).maybeSingle();
       uid = prof?.id as string | undefined;
     }
+    // Сынып деңгейі (current_grade): бүкіл сыныпқа берілген тапсырмалар осы арқылы көрінеді
+    if (uid && p.res.data.role === 'student') await admin.from('profiles').update({ current_grade: p.res.data.grade }).eq('id', uid);
+    const raw = rows[p.line - 2] as { class_name?: unknown };
+    const cname = typeof raw?.class_name === 'string' && /^(7|8|9|10|11|12)\S$/u.test(raw.class_name) ? raw.class_name : null;
+    if (!cname) continue;
     const cid = await classId(cname, p.res.data.grade);
     if (uid && cid) await admin.from('class_members').upsert({ class_id: cid, student_id: uid }, { onConflict: 'class_id,student_id', ignoreDuplicates: true });
   }
