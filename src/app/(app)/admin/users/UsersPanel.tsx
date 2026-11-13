@@ -55,7 +55,9 @@ function parseCsv(text: string) {
       const m = gRaw.match(/\b(7|8|9|10|11|12)\b/) ?? gRaw.match(/^(7|8|9|10|11|12)/);
       const roleRaw = ((hasHeader ? (iR >= 0 ? r[iR] : '') : r[3]) ?? '').toLowerCase();
       const role = roleRaw === 'teacher' || roleRaw === 'мұғалім' ? 'teacher' : 'student';
-      return { username, full_name, ...(m ? { grade: Number(m[1]) } : {}), role };
+      // «8F», «9 Е», «10-А» → сынып тобы (класс)
+      const cm = gRaw.trim().toUpperCase().match(/^(7|8|9|10|11|12)\s*[-\s]?\s*([A-ZА-ЯӘҒҚҢӨҰҮҺІ])$/);
+      return { username, full_name, ...(m ? { grade: Number(m[1]) } : {}), role, ...(cm ? { class_name: `${cm[1]}${cm[2]}` } : {}) };
     })
     .filter((r) => r.username);
 }
