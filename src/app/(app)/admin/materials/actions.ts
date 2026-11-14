@@ -22,7 +22,7 @@ const meta = z.object({
   grade: z.coerce.number().int().min(7).max(12),
   unit_id: z.string().uuid().optional().or(z.literal('').transform(() => undefined)),
   topic_id: z.string().uuid().optional().or(z.literal('').transform(() => undefined)),
-  type: z.enum(['presentation', 'worksheet', 'theory', 'solution', 'extra_problems', 'link', 'other']),
+  type: z.enum(['presentation', 'worksheet', 'theory', 'solution', 'extra_problems', 'lesson_plan', 'link', 'other']),
   language: z.enum(['kk', 'ru', 'en']).default('kk'),
   external_url: z.string().url().optional().or(z.literal('').transform(() => undefined)),
   license: z.string().max(200).optional(),

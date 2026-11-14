@@ -7,7 +7,7 @@ interface Unit { id: string; grade: number; title: string; topics: { id: string;
 
 const TYPES: [string, string][] = [
   ['presentation', 'Презентация'], ['worksheet', 'Жұмыс парағы'], ['theory', 'Теория'], ['solution', 'Шешім'],
-  ['extra_problems', 'Қосымша есептер'], ['link', 'Сілтеме'], ['other', 'Басқа'],
+  ['extra_problems', 'Қосымша есептер'], ['lesson_plan', 'ҚМЖ (тек мұғалімге)'], ['link', 'Сілтеме'], ['other', 'Басқа'],
 ];
 
 export function UploadForm({ units }: { units: Unit[] }) {

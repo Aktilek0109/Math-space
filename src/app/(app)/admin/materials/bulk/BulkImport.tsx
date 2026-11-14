@@ -19,7 +19,9 @@ const MIME: Record<string, string> = {
   jpg: 'image/jpeg',
   jpeg: 'image/jpeg',
 };
-const HIDE = ['ҚМЖ', 'КТП', '~$', '_', '.'];
+const HIDE = ['КТП', '~$', '_', '.'];
+/** ҚМЖ файлдары/папкалары — тек мұғалімге көрінетін түрмен салынады */
+const isPlan = (p: string) => /^\s*[ҚК]МЖ/i.test(p);
 const BATCH = 10;
 
 interface Row {
@@ -31,6 +33,7 @@ interface Row {
   name: string;
   mime: string;
   order: number;
+  plan: boolean;
   status: 'wait' | 'ok' | 'skip' | 'err';
   error?: string;
 }
@@ -43,7 +46,7 @@ function parse(files: FileList): { rows: Row[]; ignored: string[] } {
     const parts = (file.webkitRelativePath || file.name).split('/').filter(Boolean);
     const name = parts[parts.length - 1];
     const ext = (name.split('.').pop() || '').toLowerCase();
-    if (parts.some((p) => HIDE.some((h) => p.startsWith(h)))) return ignored.push(file.webkitRelativePath + ' (жасырын/ҚМЖ)');
+    if (parts.some((p) => HIDE.some((h) => p.startsWith(h)))) return ignored.push(file.webkitRelativePath + ' (жасырын/КТП)');
     if (!MIME[ext]) return ignored.push(file.webkitRelativePath + ' (түрі қолдау көрмейді)');
     if (file.size === 0) return ignored.push(file.webkitRelativePath + ' (бос файл — zip-ті толық шығарыңыз: «Извлечь все»)');
     if (file.size > 30 * 1024 * 1024) return ignored.push(file.webkitRelativePath + ' (30 МБ-тан үлкен)');
@@ -51,7 +54,9 @@ function parse(files: FileList): { rows: Row[]; ignored: string[] } {
     const gi = parts.findIndex((p) => /^(7|8|9|10|11|12)(\s|-|$)/.test(p) && /сынып|^\d+$/i.test(p));
     if (gi < 0) return ignored.push(file.webkitRelativePath + ' (сынып папкасы табылмады)');
     const grade = Number(parts[gi].match(/^\d+/)![0]);
-    let rest = parts.slice(gi + 1, -1);
+    const plan = parts.slice(gi + 1).some(isPlan);
+    // «ҚМЖ» папкасының өзі бөлім/тақырып емес — құрылымнан алып тастаймыз
+    let rest = parts.slice(gi + 1, -1).filter((p) => !isPlan(p));
     let term: number | null = null;
     if (rest[0] && /^\d\s*-?\s*тоқсан/i.test(rest[0])) {
       term = Number(rest[0].match(/^\d/)![0]);
@@ -59,7 +64,7 @@ function parse(files: FileList): { rows: Row[]; ignored: string[] } {
     }
     const unit = rest[0] ?? null;
     const topic = rest.length > 1 ? rest.slice(1).join(' / ') : null;
-    rows.push({ file, grade, term, unit, topic, name, mime: MIME[ext], order: idx, status: 'wait' });
+    rows.push({ file, grade, term, unit, topic, name, mime: MIME[ext], order: idx, plan, status: 'wait' });
   });
   rows.sort((a, b) => (a.file.webkitRelativePath || a.name).localeCompare(b.file.webkitRelativePath || b.name, 'kk', { numeric: true }));
   rows.forEach((r, i) => (r.order = i));
@@ -87,7 +92,7 @@ export function BulkImport({ supabaseUrl, anonKey }: { supabaseUrl: string; anon
       if (!batch.length) continue;
       const prep = await apiFetch<{ items: { i: number; skipped?: boolean; material_id?: string; path?: string; token?: string; error?: string }[] }>(
         '/api/admin/materials/bulk',
-        { method: 'POST', json: { action: 'prepare', items: batch.map((r) => ({ grade: r.grade, term: r.term, unit: r.unit, topic: r.topic, name: r.name, mime: r.mime, size: r.file.size, order: r.order })) } },
+        { method: 'POST', json: { action: 'prepare', items: batch.map((r) => ({ grade: r.grade, term: r.term, unit: r.unit, topic: r.topic, name: r.name, mime: r.mime, size: r.file.size, order: r.order, plan: r.plan })) } },
       );
       if (!prep.ok) {
         batch.forEach((r) => { r.status = 'err'; r.error = failureText(prep.failure).join(' '); });
@@ -122,7 +127,7 @@ export function BulkImport({ supabaseUrl, anonKey }: { supabaseUrl: string; anon
   const groups = useMemo(() => {
     const m = new Map<string, number>();
     rows.forEach((r) => {
-      const k = [`${r.grade}-сынып`, r.term ? `${r.term}-тоқсан` : null, r.unit, r.topic].filter(Boolean).join(' › ');
+      const k = [`${r.grade}-сынып`, r.term ? `${r.term}-тоқсан` : null, r.unit, r.topic].filter(Boolean).join(' › ') + (r.plan ? ' (ҚМЖ — тек мұғалімге)' : '');
       m.set(k, (m.get(k) ?? 0) + 1);
     });
     return [...m.entries()];
@@ -133,7 +138,7 @@ export function BulkImport({ supabaseUrl, anonKey }: { supabaseUrl: string; anon
       <div className="card space-y-3">
         <p className="text-sm text-slate-600">
           Компьютердегі материалдар папкасын таңдаңыз (мысалы, Drive-тан жүктелген «Математика — оқушыларға»). Сынып › тоқсан › бөлім › тақырып
-          құрылымы сақталады, бөлімдер мен тақырыптар автоматты түрде жасалады, материалдар бірден жарияланады. «ҚМЖ», «КТП» және «_» деп басталатын файлдар өткізіліп жіберіледі.
+          құрылымы сақталады, бөлімдер мен тақырыптар автоматты түрде жасалады, материалдар бірден жарияланады. «ҚМЖ» деп басталатын файлдар мен папкалар тек мұғалімге көрінетін ҚМЖ ретінде салынады (оқушы көрмейді). «КТП» және «_» деп басталатындар өткізіліп жіберіледі.
         </p>
         <input
           ref={inputRef}

@@ -30,6 +30,7 @@ const prepareItem = z.object({
   mime: z.enum(MIME),
   size: z.number().int().positive().max(MAX_BYTES),
   order: z.number().int().min(0).max(100000).default(0),
+  plan: z.boolean().optional(),
 });
 const finalizeItem = z.object({
   material_id: z.string().uuid(),
@@ -43,9 +44,10 @@ const body = z.discriminatedUnion('action', [
   z.object({ action: z.literal('finalize'), items: z.array(finalizeItem).min(1).max(25) }),
 ]);
 
-type MaterialType = 'presentation' | 'worksheet' | 'solution' | 'extra_problems' | 'theory' | 'other';
+type MaterialType = 'lesson_plan' | 'presentation' | 'worksheet' | 'solution' | 'extra_problems' | 'theory' | 'other';
 function guessType(name: string): MaterialType {
   const n = name.toLowerCase();
+  if (/^\s*[қк]мж/.test(n)) return 'lesson_plan';
   if (n.includes('жауап')) return 'solution';
   if (n.includes('презентация') || /\.pptx$/.test(n)) return 'presentation';
   if (n.includes('жұмыс парағы')) return 'worksheet';
@@ -125,7 +127,10 @@ export const POST = handler(async (req: Request) => {
       const uTitle = it.unit ?? (it.term ? 'Жалпы материалдар' : null);
       const u = uTitle ? await unitId(it.grade, it.term ?? null, uTitle) : null;
       const t = u && it.topic ? await topicId(u, it.topic) : null;
-      const title = stripExt(it.name);
+      const type: MaterialType = it.plan ? 'lesson_plan' : guessType(it.name);
+      const base = stripExt(it.name);
+      // ҚМЖ атауы презентациямен бірдей болса дубль деп қалмауы үшін
+      const title = type === 'lesson_plan' && !/^\s*[ҚК]МЖ/i.test(base) ? `ҚМЖ — ${base}` : base;
 
       // Қайта іске қосқанда дубль жасамау
       let dq = admin.from('materials').select('id, material_assets(count)').eq('grade', it.grade).eq('title', title).limit(1);
@@ -149,7 +154,7 @@ export const POST = handler(async (req: Request) => {
             grade: it.grade,
             unit_id: u,
             topic_id: t,
-            type: guessType(it.name),
+            type,
             language: 'kk',
             sort_order: it.order,
             source: 'Мұғалімнің авторлық материалы',

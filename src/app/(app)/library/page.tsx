@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { requireUser } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
-import { GRADES, MATERIAL_TYPES, getUnits } from '@/lib/catalog';
+import { GRADES, MATERIAL_TYPES, STAFF_ONLY_TYPES, getUnits } from '@/lib/catalog';
 
 export const metadata: Metadata = { title: 'Кітапхана' };
 
@@ -18,6 +18,8 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
   const profile = await requireUser();
   const grade = Number(sp.grade) || profile.current_grade || 7;
   const units = await getUnits(grade);
+  const isStaff = profile.role === 'teacher' || profile.role === 'admin';
+  const typeOptions = Object.entries(MATERIAL_TYPES).filter(([k]) => isStaff || !STAFF_ONLY_TYPES.includes(k));
 
   const supabase = await createClient();
   const { data } = await supabase
@@ -27,7 +29,10 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
     .eq('grade', grade)
     .order('sort_order')
     .order('title');
-  const all = (data ?? []) as Mat[];
+  const everything = (data ?? []) as Mat[];
+  // ҚМЖ санға кірмейді және тақырып ішінде бөлек блокта көрсетіледі
+  const all = everything.filter((m) => !STAFF_ONLY_TYPES.includes(m.type));
+  const plans = everything.filter((m) => STAFF_ONLY_TYPES.includes(m.type));
 
   const unit = units.find((u) => u.id === sp.unit) ?? null;
   const topic = unit?.topics.find((t) => t.id === sp.topic) ?? null;
@@ -56,7 +61,7 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
       .eq('grade', grade)
       .textSearch('search_tsv', search.slice(0, 100), { type: 'websearch', config: 'simple' })
       .limit(50);
-    if (sp.type && sp.type in MATERIAL_TYPES) q = q.eq('type', sp.type);
+    if (sp.type && typeOptions.some(([k]) => k === sp.type)) q = q.eq('type', sp.type);
     found = ((await q).data ?? []) as Mat[];
   }
 
@@ -76,11 +81,19 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
     </Link>
   );
 
+  const Plans = ({ items }: { items: Mat[] }) =>
+    items.length ? (
+      <section className="space-y-2 rounded-xl border border-amber-300 bg-amber-50 p-3">
+        <h2 className="text-sm font-semibold text-amber-900">ҚМЖ · тек мұғалімге көрінеді</h2>
+        <MatList items={items} />
+      </section>
+    ) : null;
+
   const MatList = ({ items }: { items: Mat[] }) => (
     <div className="space-y-3">
       {items.map((m) => (
         <Link key={m.id} href={`/library/${m.id}`} className="card flex items-center gap-3 hover:border-brand-500">
-          <span className="chip shrink-0">{MATERIAL_TYPES[m.type] ?? m.type}</span>
+          <span className={`chip shrink-0 ${STAFF_ONLY_TYPES.includes(m.type) ? 'bg-amber-100 text-amber-900' : ''}`}>{MATERIAL_TYPES[m.type] ?? m.type}</span>
           <span className="font-medium">{m.title}</span>
         </Link>
       ))}
@@ -92,14 +105,21 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
     body = found.length ? <MatList items={found} /> : <div className="card text-slate-500">Материал табылмады.</div>;
   } else if (topic) {
     const items = all.filter((m) => m.topic_id === topic.id);
-    body = items.length ? <MatList items={items} /> : <div className="card text-slate-500">Бұл тақырыпта материал әлі жоқ.</div>;
+    const tp = plans.filter((m) => m.topic_id === topic.id);
+    body = (
+      <div className="space-y-4">
+        {isStaff && <Plans items={tp} />}
+        {items.length ? <MatList items={items} /> : <div className="card text-slate-500">Бұл тақырыпта материал әлі жоқ.</div>}
+      </div>
+    );
   } else if (unit) {
     const direct = all.filter((m) => m.unit_id === unit.id && !m.topic_id);
     body = (
       <div className="space-y-4">
+        {isStaff && <Plans items={plans.filter((m) => m.unit_id === unit.id && !m.topic_id)} />}
         {unit.topics.length > 0 && (
           <div className="grid gap-3 sm:grid-cols-2">
-            {unit.topics.map((t) => <Tile key={t.id} to={href({ unit: unit.id, topic: t.id })} title={t.title} sub={`${countTopic(t.id)} материал`} />)}
+            {unit.topics.map((t) => <Tile key={t.id} to={href({ unit: unit.id, topic: t.id })} title={t.title} sub={`${countTopic(t.id)} материал${isStaff && plans.some((m) => m.topic_id === t.id) ? ' · ҚМЖ бар' : ''}`} />)}
           </div>
         )}
         {direct.length > 0 && <MatList items={direct} />}
@@ -149,7 +169,7 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
         <input name="q" defaultValue={sp.q} placeholder={`${grade}-сынып материалдарынан іздеу…`} className="input sm:flex-1" aria-label="Іздеу" />
         <select name="type" defaultValue={sp.type ?? ''} className="input sm:w-48" aria-label="Түрі">
           <option value="">Барлық түр</option>
-          {Object.entries(MATERIAL_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          {typeOptions.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
         <button className="btn btn-primary">Іздеу</button>
       </form>
