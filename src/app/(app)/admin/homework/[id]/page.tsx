@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { assignmentStudents, fmtDue, isLate } from '@/lib/homework';
 import { GradeRow, ImportGrades, DeleteAssignment, ExportZip, AiCheckAll, AiBox, type AiResult } from './GradeTools';
 import { AI_DAILY_FREE, aiConfigured, aiUsageToday } from '@/lib/ai-check';
+import { TasksReport } from './TasksReport';
 
 export default async function AdminHomeworkItem({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -12,10 +13,11 @@ export default async function AdminHomeworkItem({ params }: { params: Promise<{ 
   const admin = createAdminClient();
   const { data: a } = await admin
     .from('assignments')
-    .select('id, title, description, grade, class_id, due_at, max_score, classes(name)')
+    .select('id, title, description, grade, class_id, due_at, max_score, mode, classes(name)')
     .eq('id', id)
     .maybeSingle();
   if (!a) notFound();
+  if (a.mode === 'tasks') return <TasksReport a={{ ...a, classes: a.classes as unknown as { name: string } | null }} />;
   const [{ data: key }, students, { data: subs }, usage] = await Promise.all([
     admin.from('assignment_keys').select('answer_text').eq('assignment_id', id).maybeSingle(),
     assignmentStudents(admin, a),

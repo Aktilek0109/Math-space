@@ -68,6 +68,9 @@ export default async function AdminLessons({ searchParams }: { searchParams: Pro
                   {l.note && <p className="text-slate-600">{l.note}</p>}
                   {l.homework_text && <p className="mt-1">🏠 <b>Үй тапсырмасы:</b> {l.homework_text}</p>}
                   {l.assignment_id && <Link href={`/admin/homework/${l.assignment_id}`} className="text-xs text-brand-600 hover:underline">Онлайн тапсыру → жұмыстарды көру</Link>}
+                  {!l.assignment_id && l.topic_id && (
+                    <Link href={`/admin/homework/compose?class=${c.id}&topic=${l.topic_id}&lesson=${l.id}`} className="text-xs text-brand-600 hover:underline">🎯 Үй жұмысын құрастыру</Link>
+                  )}
                 </div>
               );
             })}

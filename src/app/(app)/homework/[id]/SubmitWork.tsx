@@ -9,7 +9,7 @@ const OK_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'applica
 const MAX = 10 * 1024 * 1024;
 
 /** Үлкен фотоны ~2000 px JPEG-ке кішірейту (жүктеу жылдам, мәтін оқылады). PDF/HEIC өзгертілмейді. */
-async function shrink(file: File): Promise<File> {
+export async function shrink(file: File): Promise<File> {
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size < 1.5 * 1024 * 1024) return file;
   try {
     const bmp = await createImageBitmap(file);

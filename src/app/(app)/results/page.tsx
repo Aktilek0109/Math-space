@@ -32,7 +32,10 @@ export default async function ResultsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Нәтижелер</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-semibold">Нәтижелер</h1>
+        <Link href="/results/progress" className="btn btn-primary">📈 Менің ілгерілеуім</Link>
+      </div>
 
       {agg.size > 0 && (
         <section className="card">

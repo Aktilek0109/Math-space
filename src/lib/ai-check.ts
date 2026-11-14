@@ -10,11 +10,11 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  */
 
 export const AI_DAILY_FREE = 10_000;
-const AI_DAILY_STOP = 9_500;
+export const AI_DAILY_STOP = 9_500;
 const MAX_IMAGES = 4;
 
-const PRIMARY = '@cf/google/gemma-4-26b-a4b-it';
-const FALLBACK = '@cf/meta/llama-4-scout-17b-16e-instruct';
+export const PRIMARY = '@cf/google/gemma-4-26b-a4b-it';
+export const FALLBACK = '@cf/meta/llama-4-scout-17b-16e-instruct';
 /** нейрон / 1 млн токен: [кіріс, шығыс] — developers.cloudflare.com/workers-ai/platform/pricing */
 const RATES: Record<string, [number, number]> = {
   [PRIMARY]: [9091, 27273],
@@ -49,16 +49,16 @@ Reply with ONLY one JSON object, no markdown:
  "feedback": "1-2 short sentences in Kazakh addressed to the student",
  "readable": true}`;
 
-function parseJson(text: string): Record<string, unknown> | null {
+export function parseJson(text: string): Record<string, unknown> | null {
   const s = text.indexOf('{');
   const e = text.lastIndexOf('}');
   if (s < 0 || e <= s) return null;
   try { return JSON.parse(text.slice(s, e + 1)); } catch { return null; }
 }
 
-class QuotaError extends Error {}
+export class QuotaError extends Error {}
 
-async function callModel(model: string, messages: unknown[]) {
+export async function callModel(model: string, messages: unknown[]) {
   const url = `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/v1/chat/completions`;
   const res = await fetch(url, {
     method: 'POST',

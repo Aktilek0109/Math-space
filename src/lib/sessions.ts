@@ -24,7 +24,7 @@ interface ItemDraft {
   key: { answer: AnswerKey; solution: { text: string }; rubric: RubricLine[] };
 }
 
-interface QuestionRow {
+export interface QuestionRow {
   id: string;
   unit_id: string | null;
   body_json: PublicBody;
@@ -68,7 +68,7 @@ async function loadCandidates(
   return { candidates, byId };
 }
 
-async function questionDrafts(admin: SupabaseClient, ids: string[], byId: Map<string, QuestionRow>): Promise<ItemDraft[]> {
+export async function questionDrafts(admin: SupabaseClient, ids: string[], byId: Map<string, QuestionRow>): Promise<ItemDraft[]> {
   if (ids.length === 0) return [];
   const { data: keys, error } = await admin
     .from('question_keys')
@@ -97,7 +97,7 @@ async function questionDrafts(admin: SupabaseClient, ids: string[], byId: Map<st
   });
 }
 
-async function persistSession(
+export async function persistSession(
   admin: SupabaseClient,
   meta: {
     owner_id: string;

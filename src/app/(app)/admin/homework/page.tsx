@@ -12,7 +12,7 @@ export default async function AdminHomework() {
   await requireRole(['teacher', 'admin']);
   const supabase = await createClient();
   const [{ data: list }, { data: classes }, { data: materials }] = await Promise.all([
-    supabase.from('assignments').select('id, title, grade, due_at, max_score, class_id, classes(name)').order('created_at', { ascending: false }).limit(200),
+    supabase.from('assignments').select('id, title, grade, due_at, max_score, class_id, mode, classes(name)').order('created_at', { ascending: false }).limit(200),
     supabase.from('classes').select('id, name, grade').order('grade').order('name'),
     supabase.from('materials').select('id, title, grade').eq('status', 'published').order('grade').order('sort_order').limit(1000),
   ]);
@@ -32,6 +32,9 @@ export default async function AdminHomework() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Үй жұмыстары</h1>
+      <div className="flex flex-wrap gap-2">
+        <Link href="/admin/homework/compose" className="btn btn-primary">🎯 Мақсат бойынша құрастыру</Link>
+      </div>
       <NewAssignment classes={(classes ?? []) as { id: string; name: string; grade: number }[]} materials={(materials ?? []) as { id: string; title: string; grade: number }[]} />
       <section className="space-y-2">
         <h2 className="font-semibold">Берілген тапсырмалар</h2>
@@ -42,7 +45,7 @@ export default async function AdminHomework() {
           return (
             <Link key={a.id} href={`/admin/homework/${a.id}`} className="card flex flex-wrap items-center justify-between gap-2 hover:border-brand-500">
               <div>
-                <div className="font-medium">{a.title}</div>
+                <div className="font-medium">{(a as { mode?: string }).mode === 'tasks' ? '🎯 ' : ''}{a.title}</div>
                 <div className="text-xs text-slate-500">{cls ?? `${a.grade}-сынып (барлығы)`} · мерзімі: {fmtDue(a.due_at)}</div>
               </div>
               <div className="flex gap-2 text-xs">

@@ -108,6 +108,11 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
     const tp = plans.filter((m) => m.topic_id === topic.id);
     body = (
       <div className="space-y-4">
+        {isStaff && (
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/admin/homework/compose?topic=${topic.id}`} className="btn btn-secondary text-sm">🎯 Үй жұмысын құрастыру</Link>
+          </div>
+        )}
         {isStaff && <Plans items={tp} />}
         {items.length ? <MatList items={items} /> : <div className="card text-slate-500">Бұл тақырыпта материал әлі жоқ.</div>}
       </div>
