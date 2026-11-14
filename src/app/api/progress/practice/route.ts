@@ -33,7 +33,7 @@ export const POST = handler(async (req: Request) => {
   const want = input.kind === 'diagnose' ? 2 : 4;
   const order = (q: QuestionRow) => (input.kind === 'harder' ? -q.difficulty : input.kind === 'diagnose' ? Math.abs(q.difficulty - 2) : q.difficulty);
   const picked = [...base].sort((a, b) => order(a) - order(b) || a.id.localeCompare(b.id)).slice(0, want);
-  const byId = new Map(picked.map((q) => [q.id, q]));
+  const byId = new Map<string, QuestionRow>(picked.map((q) => [q.id, q]));
   const drafts = await questionDrafts(admin, picked.map((q) => q.id), byId);
   const sessionId = await persistSession(admin, {
     owner_id: profile.id,

@@ -356,7 +356,7 @@ export async function submitAll(profile: Profile, assignmentId: string) {
   const { data: items } = await admin.from('homework_items').select(ITEM_COLS).eq('assignment_id', assignmentId).or(`student_id.is.null,student_id.eq.${profile.id}`);
   const list = (items ?? []) as ItemRow[];
   const { data: atts } = await admin.from('homework_attempts').select(ATT_COLS).eq('student_id', profile.id).in('item_id', list.map((i) => i.id));
-  const byItem = new Map(list.map((i) => [i.id, i]));
+  const byItem = new Map<string, ItemRow>(list.map((i) => [i.id, i]));
   let any = false;
   for (const at of (atts ?? []) as AttemptRow[]) {
     if (hasContent(at)) any = true;

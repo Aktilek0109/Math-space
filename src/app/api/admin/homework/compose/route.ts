@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { ApiError, apiUser, audit, handler, json, parseBody } from '@/lib/api';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assignmentStudents } from '@/lib/homework';
-import { defaultCriteria, objectiveQuestions, pickVaried, seenQuestionIds, topicObjectives, type BankQuestion } from '@/lib/objectives';
+import { defaultCriteria, objectiveQuestions, pickVaried, seenQuestionIds, topicObjectives, type BankQuestion, type Objective } from '@/lib/objectives';
 import type { RubricLine } from '@/lib/generator/types';
 
 /**
@@ -35,7 +35,7 @@ const publicQ = (q: BankQuestion, criteria: { descriptor: string; marks: number 
 async function rubricMap(admin: ReturnType<typeof createAdminClient>, ids: string[]) {
   if (!ids.length) return new Map<string, RubricLine[]>();
   const { data } = await admin.from('question_keys').select('question_id, rubric_json').in('question_id', ids);
-  return new Map((data ?? []).map((k) => [k.question_id as string, (k.rubric_json ?? []) as RubricLine[]]));
+  return new Map<string, RubricLine[]>((data ?? []).map((k: { question_id: string; rubric_json: RubricLine[] | null }) => [k.question_id, k.rubric_json ?? []]));
 }
 
 async function classStudentIds(admin: ReturnType<typeof createAdminClient>, classId?: string | null) {
@@ -55,7 +55,7 @@ export const POST = handler(async (req: Request) => {
     // Сынып оқушыларына бұрын көрсетілген есептер соңына ысырылады
     const seen = await seenQuestionIds(admin, await classStudentIds(admin, input.class_id));
     const used = new Set<string>();
-    const out = [];
+    const out: { objective: Objective; available: number; items: ReturnType<typeof publicQ>[] }[] = [];
     for (const o of objectives) {
       const pool = await objectiveQuestions(admin, o.id);
       const picked = pickVaried(pool, input.per_objective, used, seen);
@@ -91,8 +91,10 @@ export const POST = handler(async (req: Request) => {
     admin.from('topics').select('id, title, units(grade)').eq('id', input.topic_id).maybeSingle(),
   ]);
   if (!topic) throw new ApiError(404, 'Тақырып табылмады');
-  const qMap = new Map((qs ?? []).map((q) => [q.id as string, q]));
-  const kMap = new Map((keys ?? []).map((k) => [k.question_id as string, k]));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const qMap = new Map<string, any>((qs ?? []).map((q: { id: string }) => [q.id, q]));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const kMap = new Map<string, any>((keys ?? []).map((k: { question_id: string }) => [k.question_id, k]));
   const { data: links } = await admin.from('question_objectives').select('question_id, objective_id').in('question_id', ids);
   for (const it of input.items) {
     const q = qMap.get(it.question_id);

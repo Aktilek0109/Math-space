@@ -36,12 +36,13 @@ export async function TasksReport({ a }: { a: { id: string; title: string; descr
   const items = (itemsRaw ?? []) as unknown as Item[];
   const atts = (attsRaw ?? []) as unknown as Att[];
   const common = items.filter((i) => !i.student_id);
-  const subBy = new Map((subs ?? []).map((s) => [s.student_id as string, s]));
+  type SubRow = { student_id: string; submitted_at: string | null; score: number | null; graded_at: string | null };
+  const subBy = new Map<string, SubRow>(((subs ?? []) as SubRow[]).map((s) => [s.student_id, s]));
   const att = (itemId: string, sid: string, kind: 'first' | 'revised') => atts.find((x) => x.item_id === itemId && x.student_id === sid && x.kind === kind) ?? null;
   const followOf = (itemId: string, sid: string) => items.find((i) => i.parent_item_id === itemId && i.student_id === sid) ?? null;
 
   // Мақсаттар
-  const objectives = [...new Map(common.filter((i) => i.objective_id).map((i) => [i.objective_id!, i.learning_objectives])).entries()];
+  const objectives = [...new Map<string, Item['learning_objectives']>(common.filter((i) => i.objective_id).map((i) => [i.objective_id!, i.learning_objectives])).entries()];
 
   /** Бір оқушының мақсат бойынша дербес дерегі (ортақ есептің first + тексеру есебінің first). */
   function studentObjective(sid: string, oid: string) {
@@ -131,7 +132,7 @@ export async function TasksReport({ a }: { a: { id: string; title: string; descr
               <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2">
                 <span className="font-medium">{st.full_name || st.username}</span>
                 <span className="flex gap-2 text-xs">
-                  {s?.submitted_at ? <span className="chip bg-blue-100 text-blue-800">Тапсырды {fmtDue(s.submitted_at as string)}</span> : <span className="chip bg-red-50 text-red-700">Тапсырмаған</span>}
+                  {s?.submitted_at ? <span className="chip bg-blue-100 text-blue-800">Тапсырды {fmtDue(s.submitted_at)}</span> : <span className="chip bg-red-50 text-red-700">Тапсырмаған</span>}
                   {s?.graded_at && <span className="chip bg-green-100 text-green-800">{Number(s.score)} / {Number(a.max_score)}</span>}
                 </span>
               </summary>

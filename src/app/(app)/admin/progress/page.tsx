@@ -18,8 +18,9 @@ export default async function ClassProgress({ searchParams }: { searchParams: Pr
   let unitCols: { id: string; title: string; term: number | null }[] = [];
   if (cls) {
     const { data: members } = await supabase.from('class_members').select('profiles(id, full_name, username, is_active)').eq('class_id', cls.id);
-    const students = ((members ?? []) as unknown as { profiles: { id: string; full_name: string; username: string; is_active: boolean } | null }[])
-      .map((m) => m.profiles).filter((p): p is NonNullable<typeof p> => !!p && p.is_active)
+    type P = { id: string; full_name: string; username: string; is_active: boolean };
+    const students = ((members ?? []) as unknown as { profiles: P | null }[])
+      .map((m) => m.profiles).filter((p): p is P => !!p && p.is_active)
       .sort((a, b) => (a.full_name || a.username).localeCompare(b.full_name || b.username, 'kk'));
     const results = await Promise.all(students.map(async (s) => ({ s, p: await loadProgress(supabase, s.id, cls.grade) })));
     const first = results[0]?.p.terms.flatMap((t) => t.units) ?? [];
@@ -27,7 +28,7 @@ export default async function ClassProgress({ searchParams }: { searchParams: Pr
     rows = results.map(({ s, p }) => ({
       id: s.id,
       name: s.full_name || s.username,
-      units: new Map(p.terms.flatMap((t) => t.units).map((u) => [u.id, { pct: u.stat.items ? u.stat.pct : null, items: u.stat.items, checked: u.checked, total: u.objectives.length }])),
+      units: new Map<string, { pct: number | null; items: number; checked: number; total: number }>(p.terms.flatMap((t) => t.units).map((u) => [u.id, { pct: u.stat.items ? u.stat.pct : null, items: u.stat.items, checked: u.checked, total: u.objectives.length }])),
     }));
   }
 
