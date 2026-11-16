@@ -46,14 +46,17 @@ function Frame({ children, caption }: { children: ReactNode; caption?: string })
 
 // ───────────────────────── Функция графигі ─────────────────────────
 
-function piLabel(k: number): string {
-  // k — π/2-нің еселігі
+/** k·π/d түріндегі белгі, бөлшек қысқартылады: 2π/6 → π/3, 6π/6 → π. */
+function piLabel(k: number, d = 2): string {
   if (k === 0) return '0';
-  const sign = k < 0 ? '−' : '';
-  const a = Math.abs(k);
-  if (a % 2 === 0) { const n = a / 2; return `${sign}${n === 1 ? '' : n}π`; }
-  return `${sign}${a === 1 ? '' : a}π/2`;
+  const g = gcd(Math.abs(k), d);
+  const n = k / g, m = d / g;
+  const sign = n < 0 ? '−' : '';
+  const a = Math.abs(n);
+  const num = `${a === 1 ? '' : a}π`;
+  return m === 1 ? `${sign}${num}` : `${sign}${num}/${m}`;
 }
+function gcd(a: number, b: number): number { return b ? gcd(b, a % b) : a; }
 
 function fmt(v: number): string {
   const r = Math.round(v * 1000) / 1000;
@@ -63,7 +66,7 @@ function fmt(v: number): string {
 function Plot({ f }: { f: PlotFigure }) {
   const [x0, x1] = f.x, [y0, y1] = f.y;
   if (!(x1 > x0 && y1 > y0)) return null;
-  const W = 520, pad = { l: 34, r: 16, t: 14, b: 26 };
+  const W = 520, pad = { l: 34, r: 16, t: 14, b: 38 };
   const pw = W - pad.l - pad.r;
   // equal: бір бірліктің ұзындығы екі осьте бірдей (шеңбер дөңгелек болып көрінуі үшін)
   const ph = f.equal ? Math.min(560, (pw * (y1 - y0)) / (x1 - x0)) : 280;
@@ -73,10 +76,18 @@ function Plot({ f }: { f: PlotFigure }) {
   const ax = Math.min(Math.max(0, y0), y1); // x осі y=0 (көрінбесе шетке)
   const ay = Math.min(Math.max(0, x0), x1);
 
-  const xt: { v: number; label: string }[] = [];
-  if (f.xTicks === 'pi') {
-    const step = Math.PI / 2;
-    for (let k = Math.ceil(x0 / step); k * step <= x1 + 1e-9; k++) xt.push({ v: k * step, label: piLabel(k) });
+  const xt: { v: number; label: string; row?: number }[] = [];
+  if (f.xTicks === 'pi' || f.xTicks === 'pi6' || f.xTicks === 'pi4') {
+    // Радиан белгілері: sin/cos үшін π/6 қадам (π/6, π/3, π/2, 2π/3 …), tg/ctg үшін π/4 қадам.
+    // Белгілер көп болса, екі қатарға кезектесіп жазылады — бір-бірін баспайды.
+    const tangent = f.xTicks === 'pi4' || (f.xTicks === 'pi' && f.curves.some((c) => /tg|ctg|tan|cot/.test(c.expr)));
+    const d = tangent ? 4 : 6;
+    const step = Math.PI / d;
+    const count = Math.floor(x1 / step) - Math.ceil(x0 / step) + 1;
+    const stagger = count > 13;
+    for (let k = Math.ceil(x0 / step - 1e-9); k * step <= x1 + 1e-9; k++) {
+      xt.push({ v: k * step, label: piLabel(k, d), row: stagger && Math.abs(k) % 2 === 1 ? 1 : 0 });
+    }
   } else {
     const step = typeof f.xTicks === 'number' && f.xTicks > 0 ? f.xTicks : niceStep(x1 - x0);
     for (let v = Math.ceil(x0 / step) * step; v <= x1 + 1e-9; v += step) xt.push({ v, label: fmt(v) });
@@ -123,7 +134,7 @@ function Plot({ f }: { f: PlotFigure }) {
         {xt.filter((t) => Math.abs(t.v) > 1e-9).map((t) => (
           <g key={`tx${t.v}`}>
             <line x1={sx(t.v)} x2={sx(t.v)} y1={sy(ax) - 3} y2={sy(ax) + 3} stroke="#334155" />
-            <text x={sx(t.v)} y={sy(ax) + 15} fontSize="11" textAnchor="middle" fill="#334155" {...HALO}>{t.label}</text>
+            <text x={sx(t.v)} y={sy(ax) + 15 + (t.row ? 12 : 0)} fontSize={xt.length > 13 ? 10 : 11} textAnchor="middle" fill="#334155" {...HALO}>{t.label}</text>
           </g>
         ))}
         {yt.filter((v) => Math.abs(v) > 1e-9).map((v) => (

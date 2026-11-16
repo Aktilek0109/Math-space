@@ -20,8 +20,8 @@ export interface PlotFigure {
   kind: 'plot';
   x: [number, number];
   y: [number, number];
-  /** x осіндегі белгілер: 'pi' — π/2 қадаммен, сан — сол қадаммен */
-  xTicks?: 'pi' | number;
+  /** x осіндегі белгілер: 'pi' — радианмен (sin/cos үшін π/6, tg/ctg үшін π/4 қадам), 'pi6'/'pi4' — нақты қадам, сан — сол қадаммен */
+  xTicks?: 'pi' | 'pi6' | 'pi4' | number;
   yTicks?: number;
   /** Осьтерде масштаб бірдей (шеңбер, жанама есептері) */
   equal?: boolean;
