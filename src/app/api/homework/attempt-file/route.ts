@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ApiError, apiUser, handler } from '@/lib/api';
+import { purgedImage } from '@/lib/purged';
 
 /** Есеп жауабына тіркелген файл. ?a=<attempt_id>&i=<index>. Рұқсатты RLS тексереді (оқушының өзі / мұғалімі). */
 export const GET = handler(async (req: Request) => {
@@ -15,6 +16,6 @@ export const GET = handler(async (req: Request) => {
   const f = ((data?.files_json ?? []) as { path: string; name: string }[])[i];
   if (!f) throw new ApiError(404, 'Файл табылмады');
   const { data: s, error } = await createAdminClient().storage.from('homework').createSignedUrl(f.path, 300);
-  if (error || !s) throw new ApiError(500, 'Сілтеме жасалмады');
+  if (error || !s) return purgedImage();
   return NextResponse.redirect(s.signedUrl, { status: 302, headers: { 'Cache-Control': 'no-store' } });
 });
