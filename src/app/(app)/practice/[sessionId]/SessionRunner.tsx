@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MathText } from '@/components/MathText';
+import { Figure, Figures } from '@/components/Figure';
 import { ErrorBox } from '@/components/ErrorBox';
 import { apiFetch, failureText } from '@/lib/client-api';
 import type { AnswerKey, PublicBody, QuestionType, RubricLine } from '@/lib/generator/types';
@@ -185,6 +186,7 @@ export function SessionRunner(props: {
               <span className="chip">{it.max_marks} ұпай</span>
             </div>
             <MathText text={it.body.text} className="block leading-relaxed" />
+            <Figure figure={(it.body as { figure?: unknown }).figure} />
             <p className="text-xs text-slate-500">{TYPE_HINT[it.question_type]}</p>
 
             {(it.question_type === 'single' || it.question_type === 'multi') && (
@@ -253,6 +255,7 @@ export function SessionRunner(props: {
                   {it.key.answer.value !== undefined && ` · Жауап: ${it.key.answer.value}`}
                 </p>
                 {it.key.solution?.text && <MathText text={it.key.solution.text} className="block" />}
+                <Figures figures={(it.key.solution as { figures?: unknown }).figures} />
                 {it.key.rubric?.length > 0 && (
                   <ul className="list-disc pl-5">
                     {it.key.rubric.map((r, i) => <li key={i}>{r.descriptor} — {r.marks} ұпай</li>)}

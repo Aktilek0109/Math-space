@@ -125,3 +125,25 @@ test('difficultyFallback: деңгей жетпесе — ең жақын дең
   assert.equal(hard.picked.filter((p) => p.candidate.difficulty === 3).length, 8);
   assert.equal(hard.picked.filter((p) => p.candidate.difficulty === 1).length, 0);
 });
+
+test('Сызба: өрнек талдағышы (график үшін)', async () => {
+  const { compile, tryCompile } = await import('../src/lib/figure/expr.ts');
+  const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-9, `${a} != ${b}`);
+  near(compile('2sin(x-pi/2)+2')(Math.PI / 2), 2);
+  near(compile('2sin(x-pi/2)+2')(Math.PI), 4);
+  near(compile('sin x')(Math.PI / 2), 1);
+  near(compile('-x^2+3x')(2), 2);
+  near(compile('2^-1')(0), 0.5);
+  near(compile('3(x+1)')(1), 6);
+  near(compile('2x')(4), 8);
+  near(compile('|x|'.replace(/\|x\|/, 'abs(x)'))(-3), 3);
+  near(compile('tg(x)')(Math.PI / 4), 1);
+  near(compile('ctg x')(Math.PI / 4), 1);
+  near(compile('sqrt(x)/2')(16), 2);
+  near(compile('cos(2x)')(Math.PI / 2), -1);
+  near(compile('sin^2(x)+cos^2(x)')(0.7), 1);
+  near(compile('\\pi x')(1), Math.PI);
+  assert.equal(tryCompile('alert(1)'), null);
+  assert.equal(tryCompile('x;'), null);
+  assert.equal(tryCompile('(x+1'), null);
+});

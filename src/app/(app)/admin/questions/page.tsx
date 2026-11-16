@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { getUnits } from '@/lib/catalog';
 import { MathText } from '@/components/MathText';
+import { Figure } from '@/components/Figure';
 import { QuestionForm } from './QuestionForm';
 
 export const metadata: Metadata = { title: 'Есептер банкі' };
@@ -30,6 +31,7 @@ export default async function AdminQuestions({ searchParams }: { searchParams: P
               {(qq.exam_types as string[]).map((t) => <span key={t} className="chip">{t}</span>)}
             </div>
             <MathText text={(qq.body_json as { text: string }).text} className="block" />
+            <Figure figure={(qq.body_json as { figure?: unknown }).figure} />
           </article>
         ))}
       </section>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { MathText } from '@/components/MathText';
+import { Figure } from '@/components/Figure';
 import { ErrorBox } from '@/components/ErrorBox';
 import { apiFetch, failureText } from '@/lib/client-api';
 
@@ -162,6 +163,7 @@ export function Composer({ classes, units, initial }: {
                   </span>
                 </div>
                 <MathText text={q.body.text} />
+                <Figure figure={(q.body as { figure?: unknown }).figure} />
                 {q.body.options && (
                   <ul className="grid gap-1 text-sm sm:grid-cols-2">
                     {q.body.options.map((o) => <li key={o.id}><b>{o.id})</b> <MathText text={o.text} /></li>)}

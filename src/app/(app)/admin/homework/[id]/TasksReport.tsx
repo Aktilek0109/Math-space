@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assignmentStudents, fmtDue } from '@/lib/homework';
 import { MathText } from '@/components/MathText';
+import { Figure, Figures } from '@/components/Figure';
 import { MIN_ITEMS } from '@/lib/objectives';
 import { DeleteAssignment } from './GradeTools';
 import { GradeAttempt } from './GradeAttempt';
@@ -152,8 +153,10 @@ export async function TasksReport({ a }: { a: { id: string; title: string; descr
                       <details className="text-sm text-slate-600">
                         <summary className="cursor-pointer">Шарты, өлшемдері және кілт</summary>
                         <div className="mt-1 space-y-1"><MathText text={it.body_json.text} />
+                          <Figure figure={(it.body_json as { figure?: unknown }).figure} />
                           <ul className="list-disc pl-5">{it.criteria_json.map((c, k) => <li key={k}>{c.descriptor} — {c.marks}</li>)}</ul>
                           {it.homework_item_keys?.solution_json?.text && <p>Шешім: <MathText text={it.homework_item_keys.solution_json.text} /></p>}
+                          <Figures figures={(it.homework_item_keys?.solution_json as { figures?: unknown } | undefined)?.figures} />
                         </div>
                       </details>
                       <AttemptView a={f} label="Алғашқы нұсқа · дербес" max={it.max_marks} assignmentId={a.id} />

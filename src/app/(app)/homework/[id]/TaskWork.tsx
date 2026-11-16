@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { MathText } from '@/components/MathText';
+import { Figure } from '@/components/Figure';
 import { apiFetch, failureText } from '@/lib/client-api';
 import { shrink } from './SubmitWork';
 
@@ -144,6 +145,7 @@ function ItemCard({ n, item, first, revised, ctx, isFollowup, hasFollowup }: {
         {isFollowup && <p className="text-xs text-slate-600">Сол дағдыны шарты өзгеше есепте өз бетіңше тексер. Бұл жолғы алғашқы әрекетің дербес жұмыс болып саналады.</p>}
       </header>
       <MathText text={item.body_json.text} />
+      <Figure figure={(item.body_json as { figure?: unknown }).figure} />
       <div className="rounded-lg bg-slate-50 p-3 text-sm">
         <div className="mb-1 font-medium text-slate-700">Не үшін ұпай беріледі</div>
         <ul className="list-disc space-y-0.5 pl-5">
