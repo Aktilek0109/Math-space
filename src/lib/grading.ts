@@ -1,6 +1,7 @@
 import type { AnswerKey, QuestionType } from './generator/types.ts';
 
 export type MarkingState = 'auto' | 'pending' | 'manual' | 'self';
+import { evalLatexNumber } from './latexnum.ts';
 
 export interface ResponseValue {
   choice?: string;      // single
@@ -8,6 +9,9 @@ export interface ResponseValue {
   value?: string;       // numeric / short
   text?: string;        // open
   parts?: Record<string, string>;
+  /** Калькулятордағы шешім жолдары (LaTeX) */
+  steps?: string[];
+  partSteps?: Record<string, string[]>;
 }
 
 export interface GradeOutcome {
@@ -19,6 +23,8 @@ export interface GradeOutcome {
 /** "3,5" → 3.5; "-7/2" → -3.5; бос/жарамсыз → null */
 export function parseNumber(raw: string | undefined | null): number | null {
   if (raw == null) return null;
+  // Калькулятордан келген LaTeX жауап (2\frac19, \frac{2\sqrt{13}}{13}, x=0{,}5)
+  if (/[\\{}=^]/.test(raw)) return evalLatexNumber(raw);
   const s = raw.trim().replace(/\s+/g, '').replace(',', '.').replace('−', '-');
   if (s === '') return null;
   const frac = /^(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)$/.exec(s);

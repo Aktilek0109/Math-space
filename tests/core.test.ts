@@ -166,3 +166,12 @@ test('балл қою кестесі: қадамдар + жауап, бөлік�
     { parts: { a: { value: 0.5 }, b: { value: 2 } }, part_marks: { a: 1, b: 2 } }, '');
   assert.deepEqual(mp.map((x) => x.marks), [1, 2]);
 });
+
+import { evalLatexNumber, answerFromLines } from '../src/lib/latexnum.ts';
+test('калькулятор: LaTeX жауапты санға айналдыру', () => {
+  assert.ok(Math.abs(evalLatexNumber('x=2\\frac19')! - 19 / 9) < 1e-9);
+  assert.ok(Math.abs(evalLatexNumber('\\frac{2\\sqrt{13}}{13}')! - 2 * Math.sqrt(13) / 13) < 1e-9);
+  assert.equal(evalLatexNumber('0{,}5'), 0.5);
+  assert.equal(evalLatexNumber('x+1'), null);
+  assert.equal(answerFromLines(['D=256', 'x=\\frac{1}{3}']), '\\frac{1}{3}');
+});

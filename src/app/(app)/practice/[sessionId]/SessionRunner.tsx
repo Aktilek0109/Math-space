@@ -7,7 +7,9 @@ import { ErrorBox } from '@/components/ErrorBox';
 import { MarkScheme } from '@/components/MarkScheme';
 import { apiFetch, failureText } from '@/lib/client-api';
 import type { AnswerKey, PublicBody, QuestionType, RubricLine } from '@/lib/generator/types';
-import type { ResponseValue } from '@/lib/grading';
+import { parseNumber, type ResponseValue } from '@/lib/grading';
+import { MathNotebook } from '@/components/math/MathNotebook';
+import { answerFromLines } from '@/lib/latexnum';
 
 interface Key { answer: AnswerKey; solution: { text: string }; rubric: RubricLine[] }
 interface Item {
@@ -25,7 +27,7 @@ interface Item {
 const TYPE_HINT: Record<QuestionType, string> = {
   single: 'Бір дұрыс жауап',
   multi: 'Бірнеше дұрыс жауап',
-  numeric: 'Сандық жауап (бөлшек: 3/4 немесе 0,75)',
+  numeric: 'Калькуляторға жауапты немесе шешімді жол-жолымен жазыңыз (соңғы жол — жауап)',
   short: 'Қысқа жауап',
   open: 'Толық шешім жазыңыз',
   multipart: 'Бөліктері бар есеп',
@@ -158,7 +160,7 @@ export function SessionRunner(props: {
   }).length;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 pb-24">
+    <div className="mx-auto max-w-6xl space-y-4 pb-24">
       <header className="sticky top-[49px] z-10 -mx-4 flex items-center justify-between gap-2 border-b border-slate-200 bg-slate-50/95 px-4 py-2 backdrop-blur">
         <div>
           <h1 className="font-semibold">{props.title}</h1>
@@ -186,8 +188,12 @@ export function SessionRunner(props: {
               <h2 id={`q-${it.id}`} className="font-semibold">{it.sequence_no}-тапсырма</h2>
               <span className="chip">{it.max_marks} ұпай</span>
             </div>
+            <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+            <div className="space-y-3 lg:sticky lg:top-28">
             <MathText text={it.body.text} className="block leading-relaxed" />
             <Figure figure={(it.body as { figure?: unknown }).figure} />
+            </div>
+            <div className="space-y-3">
             <p className="text-xs text-slate-500">{TYPE_HINT[it.question_type]}</p>
 
             {(it.question_type === 'single' || it.question_type === 'multi') && (
@@ -216,10 +222,18 @@ export function SessionRunner(props: {
               </div>
             )}
 
-            {(it.question_type === 'numeric' || it.question_type === 'short') && (
+            {it.question_type === 'numeric' && (
+              <MathNotebook
+                lines={a.steps ?? (a.value ? [a.value] : [''])}
+                disabled={locked}
+                onChange={(ls) => update(it.id, { steps: ls, value: answerFromLines(ls) })}
+              />
+            )}
+
+            {it.question_type === 'short' && (
               <input
                 className="input max-w-xs"
-                inputMode={it.question_type === 'numeric' ? 'decimal' : 'text'}
+                inputMode="text"
                 value={a.value ?? ''}
                 disabled={locked}
                 onChange={(e) => update(it.id, { value: e.target.value })}
@@ -234,7 +248,8 @@ export function SessionRunner(props: {
                   const val = a.parts?.[p.label] ?? '';
                   const setPart = (v: string) => update(it.id, { parts: { ...(a.parts ?? {}), [p.label]: v } });
                   const pk = it.key?.answer.parts?.[p.label];
-                  const ok = pk && (pk.correct !== undefined ? val === pk.correct : pk.value !== undefined && val !== '' && Math.abs(Number(val.replace(',', '.').replace('−', '-')) - pk.value) <= Math.max(pk.tolerance ?? 0, 1e-9));
+                  const pv = parseNumber(val);
+                  const ok = pk && (pk.correct !== undefined ? val === pk.correct : pk.value !== undefined && pv !== null && Math.abs(pv - pk.value) <= Math.max(pk.tolerance ?? 0, 1e-9));
                   return (
                     <li key={p.label} className="rounded-lg border border-slate-200 p-3">
                       <div className="flex items-start justify-between gap-2">
@@ -251,7 +266,14 @@ export function SessionRunner(props: {
                           ))}
                         </div>
                       ) : (
-                        <input className="input mt-2 max-w-xs" inputMode="decimal" value={val} disabled={locked} onChange={(e) => setPart(e.target.value)} aria-label={`${p.label}) жауабы`} placeholder="Жауабыңыз" />
+                        <div className="mt-2">
+                          <MathNotebook
+                            label={`${p.label}) калькулятор`}
+                            lines={a.partSteps?.[p.label] ?? (val ? [val] : [''])}
+                            disabled={locked}
+                            onChange={(ls) => update(it.id, { parts: { ...(a.parts ?? {}), [p.label]: answerFromLines(ls) }, partSteps: { ...(a.partSteps ?? {}), [p.label]: ls } })}
+                          />
+                        </div>
                       )}
                       {pk && (
                         <p className={`mt-1 text-sm ${ok ? 'text-emerald-700' : 'text-amber-700'}`}>
@@ -296,12 +318,14 @@ export function SessionRunner(props: {
                 <MarkScheme type={it.question_type} maxMarks={it.max_marks} body={it.body} answer={it.key.answer} solutionText={it.key.solution?.text ?? ''} rubric={it.key.rubric} />
               </div>
             )}
+            </div>
+            </div>
           </section>
         );
       })}
 
       <div className="fixed inset-x-0 bottom-0 border-t border-slate-200 bg-white p-3">
-        <div className="mx-auto flex max-w-3xl items-center justify-end gap-2">
+        <div className="mx-auto flex max-w-6xl items-center justify-end gap-2">
           {confirming ? (
             <>
               <span className="mr-auto text-sm">
