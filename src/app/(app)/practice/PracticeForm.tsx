@@ -7,7 +7,9 @@ import { ErrorBox } from '@/components/ErrorBox';
 interface Unit { id: string; grade: number; term: number | null; title: string }
 
 export function PracticeForm({ units, defaultGrade }: { units: Unit[]; defaultGrade: number }) {
-  const [grade, setGrade] = useState(defaultGrade);
+  // Тек бөлімі (демек, есебі) бар сыныптарды көрсетеміз; әдепкі — оқушының сыныбы, ол жоқ болса бірінші бар сынып.
+  const grades = useMemo(() => Array.from(new Set(units.map((u) => u.grade))).sort((a, b) => a - b), [units]);
+  const [grade, setGrade] = useState(grades.includes(defaultGrade) ? defaultGrade : (grades[0] ?? defaultGrade));
   const [examType, setExamType] = useState<'BZhB' | 'TZhB'>('BZhB');
   const [term, setTerm] = useState<number | 0>(0);
   const [selected, setSelected] = useState<string[]>([]);
@@ -62,7 +64,7 @@ export function PracticeForm({ units, defaultGrade }: { units: Unit[]; defaultGr
         <div>
           <label htmlFor="grade" className="label">Сынып</label>
           <select id="grade" className="input" value={grade} onChange={(e) => { setGrade(Number(e.target.value)); setSelected([]); }}>
-            {[7, 8, 9, 10, 11, 12].map((g) => <option key={g} value={g}>{g}-сынып</option>)}
+            {(grades.length ? grades : [grade]).map((g) => <option key={g} value={g}>{g}-сынып</option>)}
           </select>
         </div>
         <div>
