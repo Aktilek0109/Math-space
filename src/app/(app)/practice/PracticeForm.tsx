@@ -104,6 +104,7 @@ export function PracticeForm({ units, defaultGrade }: { units: Unit[]; defaultGr
             <option value="2">Орташа</option>
             <option value="3">Күрделі</option>
           </select>
+          <p className="mt-1 text-xs text-slate-500">Таңдалған деңгейде есеп жетпесе, ең жақын деңгейден толықтырылады.</p>
         </div>
         <div>
           <label htmlFor="time_limit_min" className="label">Уақыт (мин)</label>

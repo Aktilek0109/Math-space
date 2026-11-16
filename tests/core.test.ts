@@ -104,3 +104,24 @@ test('splitEvenly', () => {
   const q = splitEvenly(['A', 'B', 'C'], 10, 'count');
   assert.deepEqual(q.map((x) => x.count), [4, 3, 3]);
 });
+
+test('difficultyFallback: деңгей жетпесе — ең жақын деңгейден толықтырады', () => {
+  // 8.2А-дағыдай: жеңіл 8, орташа 19, күрделі 8
+  const bank: Candidate[] = [
+    ...Array.from({ length: 8 }, (_, i) => ({ id: `e${i}`, unitId: 'A', topicIds: [], marks: 1, difficulty: 1 })),
+    ...Array.from({ length: 19 }, (_, i) => ({ id: `m${i}`, unitId: 'A', topicIds: [], marks: 2, difficulty: 2 })),
+    ...Array.from({ length: 8 }, (_, i) => ({ id: `h${i}`, unitId: 'A', topicIds: [], marks: 3, difficulty: 3 })),
+  ];
+  const strict = selectByQuotas(bank, [{ label: 'A', unitIds: ['A'], count: 10, difficulty: 1 }], createRng(7));
+  assert.equal(strict.shortages.length, 1);
+  const soft = selectByQuotas(bank, [{ label: 'A', unitIds: ['A'], count: 10, difficulty: 1 }], createRng(7), { difficultyFallback: true });
+  assert.equal(soft.shortages.length, 0);
+  assert.equal(soft.picked.length, 10);
+  assert.equal(soft.substituted, 2);
+  // барлық 8 жеңіл алынды, қалған 2 — орташа (күрделі емес)
+  assert.equal(soft.picked.filter((p) => p.candidate.difficulty === 1).length, 8);
+  assert.equal(soft.picked.filter((p) => p.candidate.difficulty === 3).length, 0);
+  const hard = selectByQuotas(bank, [{ label: 'A', unitIds: ['A'], count: 10, difficulty: 3 }], createRng(8), { difficultyFallback: true });
+  assert.equal(hard.picked.filter((p) => p.candidate.difficulty === 3).length, 8);
+  assert.equal(hard.picked.filter((p) => p.candidate.difficulty === 1).length, 0);
+});

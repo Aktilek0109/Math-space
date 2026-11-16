@@ -28,6 +28,8 @@ export interface Shortage {
 export interface Selection {
   picked: { candidate: Candidate; quota: string }[];
   shortages: Shortage[];
+  /** difficultyFallback кезінде: таңдалған деңгейде жетпей, көрші деңгейден алынған есеп саны */
+  substituted: number;
 }
 
 /**
@@ -40,30 +42,38 @@ export function selectByQuotas(
   candidates: Candidate[],
   quotas: Quota[],
   rng: Rng,
-  opts: { excludeIds?: Set<string>; strictExclude?: boolean } = {},
+  opts: { excludeIds?: Set<string>; strictExclude?: boolean; difficultyFallback?: boolean } = {},
 ): Selection {
   const used = new Set<string>();
   const picked: Selection['picked'] = [];
   const shortages: Shortage[] = [];
   const exclude = opts.excludeIds ?? new Set<string>();
+  let substituted = 0;
 
   for (const q of quotas) {
     const pool = candidates.filter(
       (c) =>
         !used.has(c.id) &&
         (q.unitIds.length === 0 || (c.unitId !== null && q.unitIds.includes(c.unitId))) &&
-        (q.difficulty === undefined || c.difficulty === q.difficulty),
+        (q.difficulty === undefined || opts.difficultyFallback || c.difficulty === q.difficulty),
     );
-    // Жаңа есептер алдымен, бұрын көргендері соңынан (strict болса — мүлде жоқ)
-    const fresh = rng.shuffle(pool.filter((c) => !exclude.has(c.id)));
-    const seen = opts.strictExclude ? [] : rng.shuffle(pool.filter((c) => exclude.has(c.id)));
-    const ordered = [...fresh, ...seen];
+    // Деңгей бойынша топтар: таңдалған деңгей алдымен, сосын ең жақын деңгей (fallback кезінде).
+    // Әр топ ішінде жаңа есептер алдымен, бұрын көргендері соңынан (strict болса — мүлде жоқ).
+    const dist = (c: Candidate) => (q.difficulty === undefined ? 0 : Math.abs(c.difficulty - q.difficulty));
+    const ordered: Candidate[] = [];
+    for (const d of [...new Set(pool.map(dist))].sort((a, b) => a - b)) {
+      const level = pool.filter((c) => dist(c) === d);
+      ordered.push(...rng.shuffle(level.filter((c) => !exclude.has(c.id))));
+      if (!opts.strictExclude) ordered.push(...rng.shuffle(level.filter((c) => exclude.has(c.id))));
+    }
+    const isSub = (c: Candidate) => q.difficulty !== undefined && c.difficulty !== q.difficulty;
 
     if (q.count !== undefined) {
       const take = ordered.slice(0, q.count);
       take.forEach((c) => {
         used.add(c.id);
         picked.push({ candidate: c, quota: q.label });
+        if (isSub(c)) substituted++;
       });
       if (take.length < q.count) shortages.push({ label: q.label, needed: q.count, available: take.length, unit: 'count' });
     } else if (q.marks !== undefined) {
@@ -74,13 +84,14 @@ export function selectByQuotas(
           used.add(c.id);
           picked.push({ candidate: c, quota: q.label });
           sum += c.marks;
+          if (isSub(c)) substituted++;
         }
         if (Math.abs(sum - q.marks) < 1e-9) break;
       }
       if (sum + 1e-9 < q.marks) shortages.push({ label: q.label, needed: q.marks, available: sum, unit: 'marks' });
     }
   }
-  return { picked, shortages };
+  return { picked, shortages, substituted };
 }
 
 /** Бірнеше бөлімге жалпы сан/ұпайды тең бөлу (оқушы өзі құрастырғанда). */

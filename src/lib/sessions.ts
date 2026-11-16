@@ -200,7 +200,8 @@ export async function buildPracticeSession(profile: Profile, input: PracticeGene
     topicIds: input.topic_ids,
   });
   const quotas = splitEvenly(input.unit_ids, input.count, 'count', input.difficulty);
-  const selection = selectByQuotas(candidates, quotas, rng);
+  // Күрделілік — қалау: таңдалған деңгейде жетпесе, ең жақын деңгейден толықтырылады
+  const selection = selectByQuotas(candidates, quotas, rng, { difficultyFallback: true });
   const drafts = await questionDrafts(admin, selection.picked.map((p) => p.candidate.id), byId);
 
   // Жетіспегенін тексерілген үлгілерден толтыру
@@ -255,13 +256,13 @@ export async function buildPracticeSession(profile: Profile, input: PracticeGene
       exam_type: input.exam_type,
       mode: input.mode,
       grade: input.grade,
-      parameters_json: input,
+      parameters_json: { ...input, substituted: selection.substituted },
       seed,
       time_limit_min: input.time_limit_min ?? null,
     },
     drafts,
   );
-  return { sessionId };
+  return { sessionId, substituted: selection.substituted };
 }
 
 // ---------------------------------------------------------------------------
