@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { handler, json, ApiError } from '@/lib/api';
 import { createAdminClient } from '@/lib/supabase/admin';
 import bzhbTopics from '@/data/bzhb-topics-2026-q2.json';
+import tzhbV2 from '@/data/tzhb-2026-q2-v2.json';
 
 /**
  * Дайын есептер жинағын банкке бір рет жүктеу: GET /api/seed/bank?set=<жинақ>&token=<бір реттік токен>.
@@ -11,11 +12,14 @@ import bzhbTopics from '@/data/bzhb-topics-2026-q2.json';
 interface Row {
   grade: number; unit: string; topic: string; obj: string; difficulty: number; marks: number; type: string;
   body: { text: string } & Record<string, unknown>; answer: Record<string, unknown>; solution: Record<string, unknown>;
-  exam_types: string[]; slot: string | null;
+  exam_types?: string[]; slot?: string | null;
+  /** Бірнеше оқу мақсаты (код, салмақ) — болса, obj орнына қолданылады */
+  objs?: [string, number][];
 }
 
 const SETS: Record<string, { rows: unknown; source: string }> = {
   'bzhb-topics-2026-q2': { rows: bzhbTopics, source: 'Claude, БЖБ тақырыптар 2026-11-16' },
+  'tzhb-2026-q2-v2': { rows: tzhbV2, source: 'Claude, ТЖБ 2026-11-16 v2' },
 };
 
 const SUBJECT = '00000000-0000-0000-0000-000000000001';
@@ -56,7 +60,7 @@ export const GET = handler(async (req: Request) => {
     const part = fresh.slice(i, i + CHUNK).map((r) => ({ r, id: randomUUID() }));
     const q = await admin.from('questions').insert(part.map(({ r, id }) => ({
       id, subject_id: SUBJECT, grade: r.grade, unit_id: r.unit, body_json: r.body, question_type: r.type, marks: r.marks,
-      difficulty: r.difficulty, exam_types: r.exam_types, component: r.slot ?? null, status: 'published', source_kind: 'authored',
+      difficulty: r.difficulty, exam_types: r.exam_types ?? ['TZhB'], component: r.slot ?? null, status: 'published', source_kind: 'authored',
       source: set.source,
     })));
     if (q.error) throw q.error;
@@ -64,11 +68,11 @@ export const GET = handler(async (req: Request) => {
     if (k.error) throw k.error;
     const t = await admin.from('question_topics').insert(part.map(({ r, id }) => ({ question_id: id, topic_id: r.topic })));
     if (t.error) throw t.error;
-    const links = part.flatMap(({ r, id }) => {
-      const oid = objId.get(`${r.grade}:${r.obj}`);
+    const links = part.flatMap(({ r, id }) => (r.objs ?? [[r.obj, 1] as [string, number]]).flatMap(([code, weight]) => {
+      const oid = objId.get(`${r.grade}:${code}`);
       if (!oid) { missingObj++; return []; }
-      return [{ question_id: id, objective_id: oid, weight: 1 }];
-    });
+      return [{ question_id: id, objective_id: oid, weight }];
+    }));
     if (links.length) {
       const o = await admin.from('question_objectives').insert(links);
       if (o.error) throw o.error;
