@@ -15,14 +15,14 @@ export interface TaskItem {
   student_id: string | null;
   position: number;
   question_type: 'single' | 'multi' | 'numeric' | 'short' | 'open' | 'multipart';
-  body_json: { text: string; options?: { id: string; text: string }[] };
+  body_json: { text: string; options?: { id: string; text: string }[]; parts?: { label: string; text: string; marks: number; options?: { id: string; text: string }[] }[] };
   criteria_json: Criterion[];
   max_marks: number;
   difficulty: number;
   learning_objectives: { code: string; text: string } | null;
 }
 interface AttemptFile { path: string; name: string; mime: string; size: number }
-interface Answer { value?: string; choice?: string; text?: string }
+interface Answer { value?: string; choice?: string; text?: string; parts?: Record<string, string> }
 interface Feedback { source: 'ai' | 'rule'; readable: boolean; unreadable_note?: string; done: string[]; met: number[]; next_step: string; correct: boolean | null; note?: string }
 export interface TaskAttempt {
   id: string;
@@ -263,7 +263,31 @@ function Editor({ item, kind, attempt, initial, readOnly, ctx, label, flush }: {
   return (
     <div className="space-y-2">
       {label && <div className="text-sm font-medium text-slate-700">{label}</div>}
-      {opts ? (
+      {item.body_json.parts?.length ? (
+        <ol className="space-y-2">
+          {item.body_json.parts.map((p) => {
+            const v = ans.parts?.[p.label] ?? '';
+            const setPart = (x: string) => setAns({ ...ans, parts: { ...(ans.parts ?? {}), [p.label]: x } });
+            return (
+              <li key={p.label} className="rounded border border-slate-200 p-2 text-sm">
+                <div><b>{p.label})</b> <MathText text={p.text} /> <span className="text-slate-500">({p.marks} ұпай)</span></div>
+                {p.options?.length ? (
+                  <fieldset className="mt-1 grid gap-1 sm:grid-cols-2" disabled={readOnly}>
+                    {p.options.map((o) => (
+                      <label key={o.id} className={`flex items-start gap-2 rounded border p-2 ${v === o.id ? 'border-brand-500 bg-brand-50' : 'border-slate-200'}`}>
+                        <input type="radio" name={`${item.id}-${kind}-${p.label}`} checked={v === o.id} onChange={() => setPart(o.id)} />
+                        <span><b>{o.id})</b> <MathText text={o.text} /></span>
+                      </label>
+                    ))}
+                  </fieldset>
+                ) : (
+                  <input className="input mt-1 max-w-xs" value={v} disabled={readOnly} onChange={(e) => setPart(e.target.value)} aria-label={`${p.label}) жауабы`} placeholder="мысалы: 3 немесе 5/2" maxLength={200} />
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      ) : opts ? (
         <fieldset className="grid gap-1 sm:grid-cols-2" disabled={readOnly}>
           {opts.map((o) => (
             <label key={o.id} className={`flex items-start gap-2 rounded border p-2 text-sm ${ans.choice === o.id ? 'border-brand-500 bg-brand-50' : 'border-slate-200'}`}>

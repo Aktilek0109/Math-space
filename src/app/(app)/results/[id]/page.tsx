@@ -5,10 +5,12 @@ import { loadSessionView } from '@/lib/sessions';
 import { ApiError } from '@/lib/api';
 import { EXAM_LABEL } from '@/lib/catalog';
 import { MathText } from '@/components/MathText';
+import { Figure, Figures } from '@/components/Figure';
 import { ManualGrade } from './ManualGrade';
 
-function showResponse(r: { choice?: string; choices?: string[]; value?: string; text?: string } | null) {
+function showResponse(r: { choice?: string; choices?: string[]; value?: string; text?: string; parts?: Record<string, string> } | null) {
   if (!r) return '—';
+  if (r.parts && Object.keys(r.parts).length) return Object.entries(r.parts).map(([k, v]) => `${k}) ${v || '—'}`).join('; ');
   if (r.choice) return r.choice;
   if (r.choices?.length) return r.choices.join(', ');
   if (r.value) return r.value;
@@ -72,6 +74,12 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
               <span className="chip">{pending ? 'тексерілуде' : `${it.awarded_marks ?? 0}/${it.max_marks}`}</span>
             </div>
             <MathText text={it.body.text} className="block" />
+            <Figure figure={(it.body as { figure?: unknown }).figure} />
+            {it.body.parts?.length ? (
+              <ol className="space-y-1 text-sm">
+                {it.body.parts.map((p) => <li key={p.label}><b>{p.label})</b> <MathText text={p.text} /> <span className="text-slate-500">({p.marks} ұпай)</span></li>)}
+              </ol>
+            ) : null}
             {it.body.options && (
               <ul className="grid gap-1 text-sm sm:grid-cols-2">
                 {it.body.options.map((o) => <li key={o.id}><b>{o.id})</b> <MathText text={o.text} /></li>)}
@@ -82,11 +90,13 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
               <div className="rounded-lg bg-slate-50 p-3 text-sm">
                 <p>
                   <span className="text-slate-500">Дұрыс жауап: </span>
-                  {it.key.answer.value !== undefined ? it.key.answer.value
+                  {it.key.answer.parts ? Object.entries(it.key.answer.parts as Record<string, { value?: number; correct?: string }>).map(([k, v]) => `${k}) ${v.value ?? v.correct}`).join('; ')
+                    : it.key.answer.value !== undefined ? it.key.answer.value
                     : Array.isArray(it.key.answer.correct) ? it.key.answer.correct.join(', ')
                     : it.key.answer.correct ?? it.key.answer.accepted?.join(' / ') ?? 'дескриптор бойынша'}
                 </p>
                 {it.key.solution?.text && <div className="mt-1"><span className="text-slate-500">Шешуі: </span><MathText text={it.key.solution.text} /></div>}
+                <Figures figures={(it.key.solution as { figures?: unknown }).figures} />
                 {it.key.rubric?.length > 0 && (
                   <ul className="mt-1 list-disc pl-5">{it.key.rubric.map((d, i) => <li key={i}>{d.descriptor} — {d.marks}</li>)}</ul>
                 )}

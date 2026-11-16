@@ -91,12 +91,13 @@ async function loadAttempt(admin: SupabaseClient, itemId: string, studentId: str
 }
 
 const hasContent = (a: { answer_json?: ResponseValue; files_json?: AttemptFile[] } | null) =>
-  !!a && (!!(a.answer_json?.value || a.answer_json?.choice || a.answer_json?.text?.trim()) || (a.files_json?.length ?? 0) > 0);
+  !!a && (!!(a.answer_json?.value || a.answer_json?.choice || a.answer_json?.text?.trim() || Object.values(a.answer_json?.parts ?? {}).some((v) => v?.trim())) || (a.files_json?.length ?? 0) > 0);
 
 /** Автоматты тексерілетін бөлік (сан/таңдау) — алдын ала ұпай. Ашық шешімді мұғалім бағалайды. */
 function autoMark(item: ItemRow, key: AnswerKey | null, answer: ResponseValue) {
-  if (!key || !['single', 'numeric', 'short', 'multi'].includes(item.question_type)) return { auto: null, state: 'pending' as const };
-  const has = answer.value || answer.choice || answer.choices?.length;
+  const autoMulti = item.question_type === 'multipart' && !!key?.parts;
+  if (!key || (!autoMulti && !['single', 'numeric', 'short', 'multi'].includes(item.question_type))) return { auto: null, state: 'pending' as const };
+  const has = answer.value || answer.choice || answer.choices?.length || Object.values(answer.parts ?? {}).some((v) => v?.trim());
   if (!has) return { auto: null, state: 'pending' as const };
   const g = gradeResponse(item.question_type, key, answer, Number(item.max_marks));
   return { auto: g.awarded, state: 'auto' as const };

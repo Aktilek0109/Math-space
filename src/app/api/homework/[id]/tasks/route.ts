@@ -8,6 +8,7 @@ const answer = z.object({
   value: z.string().max(200).optional(),
   choice: z.string().max(20).optional(),
   text: z.string().max(5000).optional(),
+  parts: z.record(z.string().max(10), z.string().max(200)).optional(),
 });
 const file = z.object({
   path: z.string().min(5).max(400),

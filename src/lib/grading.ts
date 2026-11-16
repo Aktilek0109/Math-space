@@ -62,8 +62,28 @@ export function gradeResponse(
       const ok = !!r.value && accepted.includes(normalizeText(r.value));
       return { awarded: ok ? maxMarks : 0, state: 'auto', correct: ok };
     }
+    case 'multipart': {
+      // Әр бөліктің кілті болса — автоматты, бөлік бойынша жартылай ұпай. Кілті жоқ болса — мұғалімге.
+      if (!key.parts || !Object.keys(key.parts).length) return { awarded: null, state: 'pending', correct: null };
+      const given = r.parts ?? {};
+      const labels = Object.keys(key.parts);
+      const partMarks = key.part_marks ?? {};
+      let awarded = 0, all = true;
+      for (const label of labels) {
+        const pk = key.parts[label];
+        const raw = given[label];
+        let ok = false;
+        if (pk.correct !== undefined) ok = !!raw && raw === pk.correct;
+        else if (typeof pk.value === 'number') {
+          const v = parseNumber(raw);
+          ok = v !== null && Math.abs(v - pk.value) <= Math.max(pk.tolerance ?? 0, 1e-9);
+        }
+        if (ok) awarded += partMarks[label] ?? maxMarks / labels.length;
+        else all = false;
+      }
+      return { awarded: Math.min(maxMarks, Math.round(awarded * 100) / 100), state: 'auto', correct: all };
+    }
     case 'open':
-    case 'multipart':
     default:
       return { awarded: null, state: 'pending', correct: null };
   }

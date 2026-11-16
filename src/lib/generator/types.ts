@@ -9,7 +9,8 @@ export interface Option {
 export interface PublicBody {
   text: string;
   options?: Option[];
-  parts?: { label: string; text: string; marks: number }[];
+  /** Бөліктері бар есеп (4–6 ұпай): әр бөлік жеке тексеріледі, ұпайы қосылады. */
+  parts?: { label: string; text: string; marks: number; options?: Option[] }[];
   image_urls?: string[];
 }
 
@@ -19,6 +20,10 @@ export interface AnswerKey {
   value?: number;
   tolerance?: number;
   accepted?: string[];
+  /** multipart: бөлік белгісі → сол бөліктің кілті (value/tolerance немесе correct) */
+  parts?: Record<string, { value?: number; tolerance?: number; correct?: string }>;
+  /** multipart: бөлік белгісі → ұпайы (шарттағы parts[].marks-пен бірдей) */
+  part_marks?: Record<string, number>;
 }
 
 export interface RubricLine {

@@ -147,3 +147,11 @@ test('Сызба: өрнек талдағышы (график үшін)', async 
   assert.equal(tryCompile('x;'), null);
   assert.equal(tryCompile('(x+1'), null);
 });
+
+test('multipart: бөлік бойынша автоматты ұпай', () => {
+  const key = { parts: { a: { value: 3 }, b: { value: 0.5, tolerance: 0.01 }, c: { correct: 'b' } }, part_marks: { a: 1, b: 2, c: 2 } };
+  assert.deepEqual(gradeResponse('multipart', key, { parts: { a: '3', b: '1/2', c: 'b' } }, 5), { awarded: 5, state: 'auto', correct: true });
+  assert.deepEqual(gradeResponse('multipart', key, { parts: { a: '3', b: '0,7', c: 'b' } }, 5), { awarded: 3, state: 'auto', correct: false });
+  assert.deepEqual(gradeResponse('multipart', key, {}, 5), { awarded: 0, state: 'auto', correct: false });
+  assert.equal(gradeResponse('multipart', {}, { parts: { a: '1' } }, 5).state, 'pending');
+});

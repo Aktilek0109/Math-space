@@ -153,7 +153,7 @@ export function SessionRunner(props: {
 
   const answered = items.filter((i) => {
     const a = answers[i.id];
-    return a && (a.choice || a.choices?.length || a.value?.trim() || a.text?.trim());
+    return a && (a.choice || a.choices?.length || a.value?.trim() || a.text?.trim() || Object.values<string>(a.parts ?? {}).some((v) => v.trim()));
   }).length;
 
   return (
@@ -227,7 +227,41 @@ export function SessionRunner(props: {
               />
             )}
 
-            {(it.question_type === 'open' || it.question_type === 'multipart') && (
+            {it.question_type === 'multipart' && it.body.parts?.length ? (
+              <ol className="space-y-3">
+                {it.body.parts.map((p) => {
+                  const val = a.parts?.[p.label] ?? '';
+                  const setPart = (v: string) => update(it.id, { parts: { ...(a.parts ?? {}), [p.label]: v } });
+                  const pk = it.key?.answer.parts?.[p.label];
+                  const ok = pk && (pk.correct !== undefined ? val === pk.correct : pk.value !== undefined && val !== '' && Math.abs(Number(val.replace(',', '.').replace('−', '-')) - pk.value) <= Math.max(pk.tolerance ?? 0, 1e-9));
+                  return (
+                    <li key={p.label} className="rounded-lg border border-slate-200 p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div><b>{p.label})</b> <MathText text={p.text} /></div>
+                        <span className="chip shrink-0">{p.marks} ұпай</span>
+                      </div>
+                      {p.options?.length ? (
+                        <div className="mt-2 grid gap-1 sm:grid-cols-2">
+                          {p.options.map((o) => (
+                            <label key={o.id} className={`flex cursor-pointer items-center gap-2 rounded border p-2 text-sm ${val === o.id ? 'border-brand-500 bg-brand-50' : 'border-slate-200'} ${pk?.correct === o.id ? 'ring-2 ring-emerald-400' : ''}`}>
+                              <input type="radio" name={`opt-${it.id}-${p.label}`} checked={val === o.id} disabled={locked} onChange={() => setPart(o.id)} />
+                              <span className="font-medium">{o.id})</span> <MathText text={o.text} />
+                            </label>
+                          ))}
+                        </div>
+                      ) : (
+                        <input className="input mt-2 max-w-xs" inputMode="decimal" value={val} disabled={locked} onChange={(e) => setPart(e.target.value)} aria-label={`${p.label}) жауабы`} placeholder="Жауабыңыз" />
+                      )}
+                      {pk && (
+                        <p className={`mt-1 text-sm ${ok ? 'text-emerald-700' : 'text-amber-700'}`}>
+                          {ok ? '✓ Дұрыс' : '✗'}{pk.value !== undefined ? ` · Жауап: ${pk.value}` : pk.correct ? ` · Дұрыс нұсқа: ${pk.correct}` : ''}
+                        </p>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            ) : (it.question_type === 'open' || it.question_type === 'multipart') && (
               <textarea
                 className="input min-h-32"
                 value={a.text ?? ''}
@@ -251,7 +285,9 @@ export function SessionRunner(props: {
                     ? 'Дескриптор бойынша өзіңізді тексеріңіз'
                     : it.awarded_marks === it.max_marks
                       ? `Дұрыс! +${it.awarded_marks}`
-                      : 'Қате'}
+                      : it.awarded_marks > 0
+                        ? `Жартылай: ${it.awarded_marks} / ${it.max_marks} ұпай`
+                        : 'Қате'}
                   {it.key.answer.value !== undefined && ` · Жауап: ${it.key.answer.value}`}
                 </p>
                 {it.key.solution?.text && <MathText text={it.key.solution.text} className="block" />}
