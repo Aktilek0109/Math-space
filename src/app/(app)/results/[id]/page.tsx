@@ -7,6 +7,7 @@ import { EXAM_LABEL } from '@/lib/catalog';
 import { MathText } from '@/components/MathText';
 import { Figure, Figures } from '@/components/Figure';
 import { ManualGrade } from './ManualGrade';
+import { MarkScheme } from '@/components/MarkScheme';
 
 function showResponse(r: { choice?: string; choices?: string[]; value?: string; text?: string; parts?: Record<string, string> } | null) {
   if (!r) return '—';
@@ -97,9 +98,7 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
                 </p>
                 {it.key.solution?.text && <div className="mt-1"><span className="text-slate-500">Шешуі: </span><MathText text={it.key.solution.text} /></div>}
                 <Figures figures={(it.key.solution as { figures?: unknown }).figures} />
-                {it.key.rubric?.length > 0 && (
-                  <ul className="mt-1 list-disc pl-5">{it.key.rubric.map((d, i) => <li key={i}>{d.descriptor} — {d.marks}</li>)}</ul>
-                )}
+                <MarkScheme type={it.question_type} maxMarks={Number(it.max_marks)} body={it.body} answer={it.key.answer} solutionText={it.key.solution?.text ?? ''} rubric={it.key.rubric} />
               </div>
             )}
             {staff && pending && it.response_id && <ManualGrade responseId={it.response_id} max={it.max_marks} />}

@@ -155,3 +155,14 @@ test('multipart: бөлік бойынша автоматты ұпай', () => {
   assert.deepEqual(gradeResponse('multipart', key, {}, 5), { awarded: 0, state: 'auto', correct: false });
   assert.equal(gradeResponse('multipart', {}, { parts: { a: '1' } }, 5).state, 'pending');
 });
+
+import { deriveMarkScheme } from '../src/lib/rubric.ts';
+test('балл қою кестесі: қадамдар + жауап, бөліктер', () => {
+  const sol = '$$\\begin{aligned}x^2-5x+6&=0\\\\D&=25-24=1\\\\x&=2;\\ 3\\end{aligned}$$\nЖауабы: $3$.';
+  const l = deriveMarkScheme('numeric', 3, { text: '' }, { value: 3 }, sol);
+  assert.equal(l.reduce((s, x) => s + x.marks, 0), 3);
+  assert.equal(l[l.length - 1].code, 'A1');
+  const mp = deriveMarkScheme('multipart', 3, { text: '', parts: [{ label: 'a', text: 'x:', marks: 1 }, { label: 'b', text: 'y:', marks: 2 }] },
+    { parts: { a: { value: 0.5 }, b: { value: 2 } }, part_marks: { a: 1, b: 2 } }, '');
+  assert.deepEqual(mp.map((x) => x.marks), [1, 2]);
+});

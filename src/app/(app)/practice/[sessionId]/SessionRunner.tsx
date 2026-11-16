@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { MathText } from '@/components/MathText';
 import { Figure, Figures } from '@/components/Figure';
 import { ErrorBox } from '@/components/ErrorBox';
+import { MarkScheme } from '@/components/MarkScheme';
 import { apiFetch, failureText } from '@/lib/client-api';
 import type { AnswerKey, PublicBody, QuestionType, RubricLine } from '@/lib/generator/types';
 import type { ResponseValue } from '@/lib/grading';
@@ -292,11 +293,7 @@ export function SessionRunner(props: {
                 </p>
                 {it.key.solution?.text && <MathText text={it.key.solution.text} className="block" />}
                 <Figures figures={(it.key.solution as { figures?: unknown }).figures} />
-                {it.key.rubric?.length > 0 && (
-                  <ul className="list-disc pl-5">
-                    {it.key.rubric.map((r, i) => <li key={i}>{r.descriptor} — {r.marks} ұпай</li>)}
-                  </ul>
-                )}
+                <MarkScheme type={it.question_type} maxMarks={it.max_marks} body={it.body} answer={it.key.answer} solutionText={it.key.solution?.text ?? ''} rubric={it.key.rubric} />
               </div>
             )}
           </section>
