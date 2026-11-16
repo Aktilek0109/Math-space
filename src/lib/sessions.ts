@@ -189,6 +189,8 @@ async function describeShortages(admin: SupabaseClient, shortages: Shortage[]) {
 // БЖБ/ТЖБ (GEN-01..04)
 // ---------------------------------------------------------------------------
 export async function buildPracticeSession(profile: Profile, input: PracticeGenerateInput) {
+  // ТЖБ — тек спецификация бойынша (35 балл): басқа параметрлер еленбейді
+  if (input.exam_type === 'TZhB') return buildTzhbSession(profile, input);
   const admin = createAdminClient();
   const seed = newSeed();
   const rng = createRng(seed);
@@ -263,6 +265,75 @@ export async function buildPracticeSession(profile: Profile, input: PracticeGene
     drafts,
   );
   return { sessionId, substituted: selection.substituted };
+}
+
+// ---------------------------------------------------------------------------
+// ТЖБ: спецификациядағы әр тапсырмаға (слотқа) банктен кездейсоқ бір нұсқа
+// ---------------------------------------------------------------------------
+export interface TzhbSlot { no: string; slot: string; marks: number; objective?: string; title?: string }
+
+export async function loadTzhbBlueprint(admin: SupabaseClient, grade: number, term?: number) {
+  let q = admin
+    .from('exam_blueprints')
+    .select('id, title, component, duration_min, total_marks, distribution_json')
+    .eq('exam_type', 'TZhB')
+    .eq('grade', grade)
+    .eq('is_active', true)
+    .order('component', { ascending: false })
+    .limit(1);
+  if (term) q = q.eq('component', `Q${term}`);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data?.[0] ?? null;
+}
+
+async function buildTzhbSession(profile: Profile, input: PracticeGenerateInput) {
+  const admin = createAdminClient();
+  const bp = await loadTzhbBlueprint(admin, input.grade, input.term);
+  if (!bp) throw new ApiError(404, `${input.grade}-сыныпқа${input.term ? ` ${input.term}-тоқсан` : ''} ТЖБ спецификациясы әлі енгізілмеген`);
+  const slots = (bp.distribution_json ?? []) as TzhbSlot[];
+  const seed = newSeed();
+  const rng = createRng(seed);
+
+  const { data, error } = await admin
+    .from('questions')
+    .select('id, unit_id, body_json, question_type, marks, difficulty, component, question_topics(topic_id)')
+    .eq('status', 'published')
+    .eq('grade', input.grade)
+    .contains('exam_types', ['TZhB'])
+    .in('component', slots.map((s) => s.slot));
+  if (error) throw error;
+  const rows = (data ?? []) as unknown as (QuestionRow & { component: string })[];
+  const byId = new Map<string, QuestionRow>(rows.map((r) => [r.id, r]));
+
+  const picked: string[] = [];
+  const missing: string[] = [];
+  for (const s of slots) {
+    const pool = rows.filter((r) => r.component === s.slot && Number(r.marks) === Number(s.marks));
+    if (!pool.length) { missing.push(`${s.no}-тапсырма (${s.marks} балл)`); continue; }
+    picked.push(rng.pick(pool).id);
+  }
+  if (missing.length) throw new ApiError(409, 'ТЖБ нұсқасын құрастыру мүмкін емес: банкте есеп жоқ', { shortages: missing.map((m) => ({ message: m })) });
+
+  const drafts = await questionDrafts(admin, picked, byId);
+  const total = drafts.reduce((a, d) => a + d.max_marks, 0);
+  if (bp.total_marks && Math.abs(total - Number(bp.total_marks)) > 1e-9) throw new ApiError(500, `ТЖБ нұсқасының балы ${total}, спецификацияда ${bp.total_marks}`);
+
+  const sessionId = await persistSession(
+    admin,
+    {
+      owner_id: profile.id,
+      exam_type: 'TZhB',
+      mode: input.mode,
+      grade: input.grade,
+      blueprint_id: bp.id as string,
+      parameters_json: { exam_type: 'TZhB', grade: input.grade, term: input.term ?? null, blueprint: bp.title, total_marks: total },
+      seed,
+      time_limit_min: (bp.duration_min as number) ?? 80,
+    },
+    drafts,
+  );
+  return { sessionId, substituted: 0 };
 }
 
 // ---------------------------------------------------------------------------

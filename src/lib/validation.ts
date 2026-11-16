@@ -18,6 +18,8 @@ export const passwordSchema = z
 export const practiceGenerateSchema = z.object({
   exam_type: z.enum(['BZhB', 'TZhB']),
   grade,
+  /** ТЖБ үшін тоқсан (спецификация таңдалады); БЖБ-да қолданылмайды */
+  term: z.coerce.number().int().min(1).max(4).optional(),
   unit_ids: z.array(uuid).max(20).default([]),
   topic_ids: z.array(uuid).max(50).default([]),
   difficulty: z.coerce.number().int().min(1).max(3).optional(),
