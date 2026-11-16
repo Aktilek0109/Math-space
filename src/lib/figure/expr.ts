@@ -10,7 +10,7 @@ type Tok = { t: 'num'; v: number } | { t: 'id'; v: string } | { t: 'op'; v: stri
 const FUNCS: Record<string, (v: number) => number> = {
   sin: Math.sin, cos: Math.cos, tan: Math.tan, tg: Math.tan,
   cot: (v) => 1 / Math.tan(v), ctg: (v) => 1 / Math.tan(v),
-  sqrt: (v) => Math.sqrt(v < 0 && v > -1e-9 ? 0 : v), abs: Math.abs, ln: Math.log, log: Math.log10, exp: Math.exp,
+  sqrt: (v) => Math.sqrt(v < 0 && v > -1e-3 ? 0 : v), abs: Math.abs, ln: Math.log, log: Math.log10, exp: Math.exp,
 };
 const CONSTS: Record<string, number> = { pi: Math.PI, 'π': Math.PI, e: Math.E };
 
