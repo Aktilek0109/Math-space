@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import katex from 'katex';
 import { ensureMathLive } from './mathlive';
 import { splitRel } from '@/lib/latexnum';
+import type { StepCheck } from '@/lib/stepcheck';
 
 /**
  * Калькулятор-дәптер: шешімді жол-жолымен, асты-астына (= белгісі бойынша тураланып) жазу.
@@ -15,6 +16,8 @@ export function MathNotebook(props: {
   disabled?: boolean;
   label?: string;
   maxLines?: number;
+  /** Жол-жолымен тексеру нәтижесі (жаттығу режимінде) */
+  checks?: StepCheck[];
 }) {
   const { disabled, maxLines = 40 } = props;
   const lines = props.lines.length ? props.lines : [''];
@@ -56,7 +59,8 @@ export function MathNotebook(props: {
         {lines.map((l, i) => {
           const isActive = !disabled && ready && active === i;
           return (
-            <div key={i} className="group relative flex items-center gap-1 px-2 py-1">
+            <div key={i} className="px-2 py-1">
+            <div className="group relative flex items-center gap-1">
               <span className="w-5 shrink-0 select-none text-right text-[10px] text-slate-300">{i + 1}</span>
               <div className="min-w-0 flex-1">
                 {isActive ? (
@@ -78,12 +82,17 @@ export function MathNotebook(props: {
                   </button>
                 )}
               </div>
+              <Mark c={props.checks?.[i]} show={!!l.trim() && lines.filter((x) => x.trim()).length > 1} />
               {!disabled && (
                 <div className={`flex shrink-0 gap-0.5 ${isActive ? '' : 'opacity-0 group-hover:opacity-100'}`}>
                   <button type="button" className="rounded px-1.5 text-slate-400 hover:bg-slate-100" title="Жолды көшіріп астына қою" onClick={() => addLine(i, true)}>⤓</button>
                   <button type="button" className="rounded px-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600" title="Жолды өшіру" onClick={() => removeLine(i)}>✕</button>
                 </div>
               )}
+            </div>
+            {props.checks?.[i]?.reason && l.trim() && (
+              <p className={`ml-6 mt-0.5 text-xs ${props.checks[i].status === 'error' ? 'text-red-600' : 'text-amber-700'}`}>{props.checks[i].reason}</p>
+            )}
             </div>
           );
         })}
@@ -146,4 +155,10 @@ function MathFieldLine(props: { value: string; onInput: (v: string) => void; onE
   }, []);
 
   return <div ref={host} className="rounded bg-brand-50/40 px-1 ring-1 ring-brand-200" />;
+}
+
+function Mark({ c, show }: { c?: StepCheck; show: boolean }) {
+  if (!show || !c || c.status === 'unknown') return <span className="w-5 shrink-0" />;
+  const m = { ok: ['✓', 'text-emerald-600', 'Дұрыс'], error: ['✗', 'text-red-600', 'Қате'], warn: ['!', 'text-amber-600', 'Назар аударыңыз'] }[c.status];
+  return <span className={`w-5 shrink-0 text-center font-bold ${m[1]}`} title={c.reason ?? m[2]} aria-label={c.reason ?? m[2]}>{m[0]}</span>;
 }

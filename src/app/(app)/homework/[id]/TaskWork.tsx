@@ -1,5 +1,9 @@
 'use client';
 
+import { MathNotebook } from '@/components/math/MathNotebook';
+import { answerFromLines } from '@/lib/latexnum';
+import { checkLines } from '@/lib/stepcheck';
+
 import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
@@ -22,7 +26,7 @@ export interface TaskItem {
   learning_objectives: { code: string; text: string } | null;
 }
 interface AttemptFile { path: string; name: string; mime: string; size: number }
-interface Answer { value?: string; choice?: string; text?: string; parts?: Record<string, string> }
+interface Answer { value?: string; choice?: string; text?: string; parts?: Record<string, string>; steps?: string[]; partSteps?: Record<string, string[]> }
 interface Feedback { source: 'ai' | 'rule'; readable: boolean; unreadable_note?: string; done: string[]; met: number[]; next_step: string; correct: boolean | null; note?: string }
 export interface TaskAttempt {
   id: string;
@@ -281,7 +285,15 @@ function Editor({ item, kind, attempt, initial, readOnly, ctx, label, flush }: {
                     ))}
                   </fieldset>
                 ) : (
-                  <input className="input mt-1 max-w-xs" value={v} disabled={readOnly} onChange={(e) => setPart(e.target.value)} aria-label={`${p.label}) жауабы`} placeholder="мысалы: 3 немесе 5/2" maxLength={200} />
+                  <div className="mt-1">
+                    <MathNotebook
+                      label={`${p.label}) калькулятор`}
+                      lines={ans.partSteps?.[p.label] ?? (v ? [v] : [''])}
+                      disabled={readOnly}
+                      checks={ans.partSteps?.[p.label] ? checkLines(ans.partSteps[p.label]) : undefined}
+                      onChange={(ls) => setAns({ ...ans, parts: { ...(ans.parts ?? {}), [p.label]: answerFromLines(ls) }, partSteps: { ...(ans.partSteps ?? {}), [p.label]: ls } })}
+                    />
+                  </div>
                 )}
               </li>
             );
@@ -299,7 +311,16 @@ function Editor({ item, kind, attempt, initial, readOnly, ctx, label, flush }: {
       ) : (
         <div>
           <label className="label" htmlFor={`v-${item.id}-${kind}`}>Жауабы</label>
-          <input id={`v-${item.id}-${kind}`} className="input max-w-xs" value={ans.value ?? ''} disabled={readOnly} onChange={(e) => setAns({ ...ans, value: e.target.value })} placeholder="мысалы: 3 немесе 5/2" maxLength={200} />
+          {item.question_type === 'numeric' ? (
+            <MathNotebook
+              lines={ans.steps ?? (ans.value ? [ans.value] : [''])}
+              disabled={readOnly}
+              checks={ans.steps ? checkLines(ans.steps) : undefined}
+              onChange={(ls) => setAns({ ...ans, steps: ls, value: answerFromLines(ls) })}
+            />
+          ) : (
+            <input id={`v-${item.id}-${kind}`} className="input max-w-xs" value={ans.value ?? ''} disabled={readOnly} onChange={(e) => setAns({ ...ans, value: e.target.value })} placeholder="Жауабыңыз" maxLength={200} />
+          )}
         </div>
       )}
       <div>

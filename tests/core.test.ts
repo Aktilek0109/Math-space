@@ -175,3 +175,14 @@ test('калькулятор: LaTeX жауапты санға айналдыру
   assert.equal(evalLatexNumber('x+1'), null);
   assert.equal(answerFromLines(['D=256', 'x=\\frac{1}{3}']), '\\frac{1}{3}');
 });
+
+import { checkLines } from '../src/lib/stepcheck.ts';
+test('шешім жолдарын тексеру', () => {
+  const st = (ls: string[]) => checkLines(ls).map((c) => c.status);
+  assert.deepEqual(st(['3(x-2)+14\\sqrt{x-2}-5=0', 't=\\sqrt{x-2}', '3t^2+14t-5=0', 'D=256', 't=\\frac{1}{3}', 't=-5\\ \\text{жарамсыз}', 'x=2\\frac{1}{9}']),
+    ['ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok']);
+  assert.deepEqual(st(['x^3=4x', 'x^2=4']), ['ok', 'error']);
+  assert.deepEqual(st(['x^2-5x+6=0', 'D=25+24=49']), ['ok', 'error']);
+  assert.deepEqual(st(['2x+3=7', '2x=4', 'x=3']), ['ok', 'ok', 'error']);
+  assert.equal(st(['\\sqrt{x+2}=x', 'x+2=x^2'])[1], 'warn');
+});

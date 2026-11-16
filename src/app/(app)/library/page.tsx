@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { requireUser } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
-import { GRADES, MATERIAL_TYPES, STAFF_ONLY_TYPES, getUnits } from '@/lib/catalog';
+import { GRADES, MATERIAL_TYPES, STAFF_ONLY_TYPES, getUnits, TOOL_BADGE } from '@/lib/catalog';
 
 export const metadata: Metadata = { title: 'Кітапхана' };
 
@@ -124,7 +124,7 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
         {isStaff && <Plans items={plans.filter((m) => m.unit_id === unit.id && !m.topic_id)} />}
         {unit.topics.length > 0 && (
           <div className="grid gap-3 sm:grid-cols-2">
-            {unit.topics.map((t) => <Tile key={t.id} to={href({ unit: unit.id, topic: t.id })} title={t.title} sub={`${countTopic(t.id)} материал${isStaff && plans.some((m) => m.topic_id === t.id) ? ' · ҚМЖ бар' : ''}`} />)}
+            {unit.topics.map((t) => <Tile key={t.id} to={href({ unit: unit.id, topic: t.id })} title={t.title} sub={`${t.tool ? TOOL_BADGE[t.tool].icon + ' ' + TOOL_BADGE[t.tool].label + ' · ' : ''}${countTopic(t.id)} материал${isStaff && plans.some((m) => m.topic_id === t.id) ? ' · ҚМЖ бар' : ''}`} />)}
           </div>
         )}
         {direct.length > 0 && <MatList items={direct} />}

@@ -10,6 +10,7 @@ import type { AnswerKey, PublicBody, QuestionType, RubricLine } from '@/lib/gene
 import { parseNumber, type ResponseValue } from '@/lib/grading';
 import { MathNotebook } from '@/components/math/MathNotebook';
 import { answerFromLines } from '@/lib/latexnum';
+import { checkLines } from '@/lib/stepcheck';
 
 interface Key { answer: AnswerKey; solution: { text: string }; rubric: RubricLine[] }
 interface Item {
@@ -225,6 +226,7 @@ export function SessionRunner(props: {
             {it.question_type === 'numeric' && (
               <MathNotebook
                 lines={a.steps ?? (a.value ? [a.value] : [''])}
+                checks={mode === 'practice' && a.steps ? checkLines(a.steps) : undefined}
                 disabled={locked}
                 onChange={(ls) => update(it.id, { steps: ls, value: answerFromLines(ls) })}
               />
@@ -270,6 +272,7 @@ export function SessionRunner(props: {
                           <MathNotebook
                             label={`${p.label}) калькулятор`}
                             lines={a.partSteps?.[p.label] ?? (val ? [val] : [''])}
+                            checks={mode === 'practice' && a.partSteps?.[p.label] ? checkLines(a.partSteps[p.label]) : undefined}
                             disabled={locked}
                             onChange={(ls) => update(it.id, { parts: { ...(a.parts ?? {}), [p.label]: answerFromLines(ls) }, partSteps: { ...(a.partSteps ?? {}), [p.label]: ls } })}
                           />
