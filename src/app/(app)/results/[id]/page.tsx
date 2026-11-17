@@ -46,7 +46,7 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
   const fb = pj.purpose === 'objective' ? await objectiveFeedback(id, view.session.owner_id, pj) : null;
   const LV: Record<number, string> = { 1: 'Жеңіл', 2: 'Орта', 3: 'Күрделі' };
   const sf = !fb && r ? await sessionFeedback({ ...view.session, parameters_json: pj }, view.items, Number(r.percent)) : null;
-  const barCls = (p: number) => (p >= 80 ? 'bg-emerald-500' : p >= 65 ? 'bg-lime-500' : p >= 40 ? 'bg-amber-400' : 'bg-red-500');
+  const barCls = (p: number) => (p >= 80 ? 'bg-[#5E9C78]' : p >= 65 ? 'bg-[#93B172]' : p >= 40 ? 'bg-[#D49A62]' : 'bg-[#CE7468]');
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -96,7 +96,7 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
                 return (
                   <div key={l.level} className="rounded-lg border border-slate-200 p-2 text-sm">
                     <div className="flex justify-between"><span>{LV[l.level] ?? l.level}</span><span className="text-slate-500">{l.n ? `${l.ok}/${l.n}` : 'берілмеді'}</span></div>
-                    <div className="mt-1 h-2 overflow-hidden rounded bg-slate-100"><div className={`h-full ${p == null ? '' : p >= 80 ? 'bg-emerald-500' : p >= 50 ? 'bg-amber-400' : 'bg-red-500'}`} style={{ width: `${p ?? 0}%` }} /></div>
+                    <div className="mt-1 h-2 overflow-hidden rounded bg-slate-100"><div className={`h-full ${p == null ? '' : p >= 80 ? 'bg-[#5E9C78]' : p >= 50 ? 'bg-[#D49A62]' : 'bg-[#CE7468]'}`} style={{ width: `${p ?? 0}%` }} /></div>
                   </div>
                 );
               })}

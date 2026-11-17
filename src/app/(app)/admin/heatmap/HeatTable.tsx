@@ -12,10 +12,10 @@ interface Stu { id: string; name: string; username: string }
 
 const BG: Record<Band, string> = {
   none: 'bg-slate-100 text-slate-400',
-  red: 'bg-red-500 text-white',
-  orange: 'bg-orange-400 text-white',
-  yellow: 'bg-yellow-300 text-slate-900',
-  green: 'bg-emerald-500 text-white',
+  red: 'bg-[#F2C9C3] text-[#7A271A]',
+  orange: 'bg-[#F5DCC0] text-[#7C3A0B]',
+  yellow: 'bg-[#F1E6B8] text-[#5C4A0B]',
+  green: 'bg-[#CDE5D5] text-[#1E5235]',
 };
 
 export function HeatTable(props: {

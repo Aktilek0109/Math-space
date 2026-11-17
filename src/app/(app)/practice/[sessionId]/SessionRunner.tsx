@@ -196,7 +196,7 @@ export function SessionRunner(props: {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 pb-24">
-      <header className="sticky top-[49px] z-10 -mx-4 flex items-center justify-between gap-2 border-b border-slate-200 bg-slate-50/95 px-4 py-2 backdrop-blur">
+      <header className="sticky top-[53px] z-10 -mx-4 lg:top-0 lg:-mx-10 lg:px-10 flex items-center justify-between gap-2 border-b border-slate-200 bg-slate-50/95 px-4 py-2 backdrop-blur">
         <div>
           <h1 className="font-semibold">{props.title}</h1>
           <p className="text-xs text-slate-500">

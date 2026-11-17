@@ -74,7 +74,7 @@ export default async function AdminHomeworkItem({ params }: { params: Promise<{ 
             </p>
             <div className="text-sm">
               Бүгінгі тегін лимит: <b>{usage.neurons}</b> / {AI_DAILY_FREE} нейрон ({pct}%) · {usage.calls} тексеру · Алматы уақытымен таңғы 5-те жаңарады
-              <div className="mt-1 h-2 w-full max-w-md rounded bg-slate-100"><div className={`h-2 rounded ${pct > 85 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${Math.min(100, pct)}%` }} /></div>
+              <div className="mt-1 h-2 w-full max-w-md rounded bg-slate-100"><div className={`h-2 rounded ${pct > 85 ? 'bg-[#CE7468]' : 'bg-green-500'}`} style={{ width: `${Math.min(100, pct)}%` }} /></div>
             </div>
             <AiCheckAll id={a.id} />
           </>

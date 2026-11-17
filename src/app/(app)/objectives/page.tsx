@@ -7,7 +7,7 @@ import { StartObjective } from './StartObjective';
 
 export const metadata: Metadata = { title: 'Оқу мақсаты бойынша дайындық' };
 
-const bar = (p: number | null) => (p == null ? 'bg-slate-200' : p >= 80 ? 'bg-emerald-500' : p >= 65 ? 'bg-lime-500' : p >= 40 ? 'bg-amber-400' : 'bg-red-500');
+const bar = (p: number | null) => (p == null ? 'bg-slate-200' : p >= 80 ? 'bg-[#5E9C78]' : p >= 65 ? 'bg-[#93B172]' : p >= 40 ? 'bg-[#D49A62]' : 'bg-[#CE7468]');
 
 /** ТЗ М3: оқу мақсаттары, меңгеру деңгейі және бейімделетін дайындықты бастау. */
 export default async function ObjectivesPage({ searchParams }: { searchParams: Promise<{ grade?: string }> }) {

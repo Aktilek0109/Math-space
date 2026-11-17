@@ -76,7 +76,7 @@ function Bar({ pct }: { pct: number | null }) {
   const v = pct ?? 0;
   return (
     <div className="h-2 w-full rounded-full bg-slate-100" role="progressbar" aria-valuenow={v} aria-valuemin={0} aria-valuemax={100}>
-      {pct != null && <div className={`h-2 rounded-full ${v >= 80 ? 'bg-emerald-500' : v >= 50 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${v}%` }} />}
+      {pct != null && <div className={`h-2 rounded-full ${v >= 80 ? 'bg-[#5E9C78]' : v >= 50 ? 'bg-amber-500' : 'bg-[#CE7468]'}`} style={{ width: `${v}%` }} />}
     </div>
   );
 }

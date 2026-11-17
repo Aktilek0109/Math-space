@@ -47,7 +47,7 @@ export default async function ResultsPage() {
                 <li key={u.title} className="text-sm">
                   <div className="flex justify-between"><span>{u.title}</span><span>{pct}%</span></div>
                   <div className="mt-1 h-2 rounded-full bg-slate-100" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={u.title}>
-                    <div className={`h-2 rounded-full ${pct >= 70 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${pct}%` }} />
+                    <div className={`h-2 rounded-full ${pct >= 70 ? 'bg-[#5E9C78]' : pct >= 40 ? 'bg-amber-500' : 'bg-[#CE7468]'}`} style={{ width: `${pct}%` }} />
                   </div>
                 </li>
               );

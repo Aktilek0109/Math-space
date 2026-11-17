@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requireUser, isStaff } from '@/lib/auth';
 import { LogoutButton } from '@/components/LogoutButton';
+import { SideNav } from '@/components/SideNav';
 import { isMeskGrade } from '@/lib/catalog';
 import { createClient } from '@/lib/supabase/server';
 
@@ -31,34 +32,33 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     due = count ?? 0;
   } catch { /* кесте жоқ болса — белгісіз */ }
 
+  const initials = (profile.full_name || profile.username).split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('');
+  const roleLabel = profile.role === 'admin' ? 'Әкімші' : profile.role === 'teacher' ? 'Мұғалім' : profile.current_grade ? `${profile.current_grade}-сынып · оқушы` : 'Оқушы';
+
   return (
-    <div className="min-h-dvh">
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2">
-          <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white">∑</span>
-            <span className="hidden sm:inline">Оқу платформасы</span>
+    <div className="min-h-dvh lg:flex">
+      <aside className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50/95 backdrop-blur lg:h-dvh lg:w-60 lg:shrink-0 lg:border-b-0 lg:border-r lg:bg-transparent">
+        <div className="flex items-center gap-3 px-4 py-2 lg:h-full lg:flex-col lg:items-stretch lg:gap-6 lg:px-4 lg:py-6">
+          <Link href="/dashboard" className="flex items-center gap-2.5 font-bold text-slate-900">
+            <span aria-hidden="true" className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-brand-600 text-white">∑</span>
+            <span className="hidden text-[17px] sm:inline">Math-space</span>
           </Link>
-          <nav aria-label="Негізгі мәзір" className="flex flex-1 gap-1 overflow-x-auto text-sm">
-            {items.map((i) => (
-              <Link key={i.href} href={i.href} className="whitespace-nowrap rounded-md px-3 py-1.5 text-slate-700 hover:bg-slate-100">
-                {i.label}
-                {i.href === '/review' && due > 0 && <span className="ml-1 rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">{due}</span>}
-              </Link>
-            ))}
-          </nav>
-          <div className="flex items-center gap-2 text-sm">
-            <Link href="/profile" className="flex items-center gap-2 rounded-md px-2 py-1 text-slate-600 hover:bg-slate-100" title="Профиль">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
-                {(profile.full_name || profile.username).split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('')}
+          <div className="min-w-0 flex-1 lg:flex-none">
+            <SideNav items={items} due={due} />
+          </div>
+          <div className="flex items-center gap-2 lg:mt-auto lg:flex-col lg:items-stretch lg:gap-3 lg:border-t lg:border-slate-200 lg:pt-4">
+            <Link href="/profile" className="flex items-center gap-2.5 rounded-lg text-sm hover:opacity-80" title="Профиль">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-bold text-brand-700">{initials}</span>
+              <span className="hidden min-w-0 flex-col leading-tight md:flex">
+                <span className="truncate font-semibold text-slate-900">{profile.full_name || profile.username}</span>
+                <span className="truncate text-xs text-slate-500">{roleLabel}</span>
               </span>
-              <span className="hidden md:inline">{profile.full_name || profile.username}</span>
             </Link>
             <LogoutButton />
           </div>
         </div>
-      </header>
-      <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+      </aside>
+      <main className="mx-auto w-full max-w-6xl min-w-0 px-4 py-6 lg:px-10 lg:py-8">{children}</main>
     </div>
   );
 }
