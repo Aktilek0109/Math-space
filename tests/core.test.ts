@@ -217,3 +217,19 @@ test('М3: бейімделу — 2 дұрыс → жоғары, 2 қате → 
   // тек 1–2 деңгей бар мақсатта күрделі талап етілмейді
   assert.equal(decide([o(1, 1), o(1, 1), o(2, 1), o(2, 1), o(2, 1), o(2, 1)], [1, 2]).reason, 'mastered');
 });
+
+import { itemLoss } from '../src/lib/feedback-rules.ts';
+test('М4: жоғалған балл жолдары және себебі', () => {
+  const body = { text: 'x', parts: [{ label: 'a', text: 'a табыңыз', marks: 1 }, { label: 'b', text: 'b табыңыз', marks: 2 }] } as never;
+  const key = { parts: { a: { value: 2 }, b: { value: 5 } }, part_marks: { a: 1, b: 2 } };
+  const l = itemLoss({ type: 'multipart', body, key, solutionText: '', max: 3, awarded: 1, response: { parts: { a: '2', b: '4' } }, hints: 0, pending: false });
+  assert.deepEqual(l.lines.map((x) => x.got), [true, false]);
+  assert.match(l.lines[1].reason!, /сіздің жауабыңыз: 4/);
+  assert.match(l.lines[1].text, /\$5\$/);
+  assert.equal(l.lost, 2);
+  const e = itemLoss({ type: 'numeric', body: { text: 'x' } as never, key: { value: 3 }, solutionText: '', max: 2, awarded: 0, response: { value: '4', steps: ['2x=6', 'x=4'] }, hints: 1, pending: false });
+  assert.match(e.reasons[0], /2-жолында|2-жол/);
+  assert.ok(e.reasons.some((r) => /көмек/.test(r)));
+  const n = itemLoss({ type: 'numeric', body: { text: 'x' } as never, key: { value: 3 }, solutionText: '', max: 1, awarded: 0, response: null, hints: 0, pending: false });
+  assert.equal(n.reasons[0], 'Жауап жазылмаған');
+});

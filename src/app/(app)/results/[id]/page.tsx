@@ -9,6 +9,7 @@ import { Figure, Figures } from '@/components/Figure';
 import { ManualGrade } from './ManualGrade';
 import { MarkScheme } from '@/components/MarkScheme';
 import { objectiveFeedback } from '@/lib/objective';
+import { sessionFeedback } from '@/lib/feedback';
 import { StartObjective } from '@/app/(app)/objectives/StartObjective';
 
 function showResponse(r: { choice?: string; choices?: string[]; value?: string; text?: string; parts?: Record<string, string> } | null) {
@@ -43,6 +44,8 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
   const pj = (view.session.parameters_json ?? {}) as Record<string, unknown>;
   const fb = pj.purpose === 'objective' ? await objectiveFeedback(id, view.session.owner_id, pj) : null;
   const LV: Record<number, string> = { 1: 'Жеңіл', 2: 'Орта', 3: 'Күрделі' };
+  const sf = !fb && r ? await sessionFeedback({ ...view.session, parameters_json: pj }, view.items, Number(r.percent)) : null;
+  const barCls = (p: number) => (p >= 80 ? 'bg-emerald-500' : p >= 65 ? 'bg-lime-500' : p >= 40 ? 'bg-amber-400' : 'bg-red-500');
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -53,6 +56,17 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
         {r && (
           <div className="mt-3 flex flex-wrap items-end gap-6">
             <div><div className="text-4xl font-bold">{Number(r.percent)}%</div><div className="text-sm text-slate-500">{Number(r.marks_earned)} / {Number(r.marks_possible)} ұпай</div></div>
+            {sf?.prev && (
+              <div className="text-sm">
+                <div className="text-slate-500">Алдыңғы осындай нұсқа</div>
+                <div className="font-medium">
+                  {sf.prev.percent}% → {Number(r.percent)}%{' '}
+                  <span className={Number(r.percent) - sf.prev.percent >= 0 ? 'text-emerald-600' : 'text-red-600'}>
+                    {Number(r.percent) - sf.prev.percent >= 0 ? '▲' : '▼'}{Math.abs(Math.round((Number(r.percent) - sf.prev.percent) * 10) / 10)}
+                  </span>
+                </div>
+              </div>
+            )}
             <div className="text-sm text-slate-600">Аяқталды: {new Date(view.session.submitted_at ?? r.created_at).toLocaleString('kk-KZ')}</div>
           </div>
         )}
@@ -112,7 +126,87 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
         </section>
       )}
 
-      {!fb && r?.feedback_json?.by_unit && r.feedback_json.by_unit.length > 0 && (
+      {sf && sf.byObjective.length > 0 && (
+        <section className="card space-y-3">
+          <h2 className="font-semibold">Оқу мақсаттары бойынша</h2>
+          <ul className="space-y-2">
+            {sf.byObjective.map((o) => (
+              <li key={o.id} className="flex flex-wrap items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm"><span className="font-mono text-xs text-slate-500">{o.code}</span> <MathText text={o.text} /></p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                    {o.possible > 0 ? (
+                      <>
+                        <div className="h-2 w-36 overflow-hidden rounded bg-slate-100"><div className={`h-full ${barCls(o.pct)}`} style={{ width: `${o.pct}%` }} /></div>
+                        <span>{o.earned}/{o.possible} ұпай · {o.pct}%</span>
+                      </>
+                    ) : <span>тексерілуде</span>}
+                    <span>· {o.levels.map((l) => LV[l]?.toLowerCase() ?? l).join(', ')} деңгей</span>
+                    <span>· {o.items.map((n) => `№${n}`).join(', ')}</span>
+                  </div>
+                </div>
+                {view.isOwner && o.possible > 0 && o.pct < 80 && <StartObjective objectiveId={o.id} label="Дайындалу" />}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {sf && sf.losses.length > 0 && (
+        <section className="card space-y-3">
+          <h2 className="font-semibold">Жоғалған балдар{sf.lostTotal > 0 ? ` (−${sf.lostTotal})` : ''}</h2>
+          {sf.losses.map((l) => (
+            <div key={l.item_id} className="rounded-lg border border-slate-200 p-3 text-sm">
+              <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                <a href={`#item-${l.item_id}`} className="font-medium text-brand-600 hover:underline">{l.seq}-тапсырма</a>
+                <span className="text-xs text-slate-500">{l.objectives.join(', ')} · {l.awarded ?? '?'}/{l.max} ұпай</span>
+              </div>
+              {l.loss.reasons.length > 0 && (
+                <ul className="mb-2 space-y-0.5">{l.loss.reasons.map((x) => <li key={x}>• <MathText text={x} /></li>)}</ul>
+              )}
+              <table className="w-full text-xs">
+                <tbody>
+                  {l.loss.lines.map((x, i) => (
+                    <tr key={i} className="border-t border-slate-100 align-top">
+                      <td className="w-5 py-1">{x.got ? <span className="text-emerald-600">✓</span> : <span className="text-red-500">✗</span>}</td>
+                      <td className="w-10 py-1 font-mono text-slate-500">{x.code}</td>
+                      <td className="py-1"><MathText text={x.text} />{x.reason && !x.got && <div className="text-red-600"><MathText text={x.reason} /></div>}</td>
+                      <td className="w-8 py-1 text-right">{x.marks}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {sf && (
+        <section className="card space-y-2 text-sm">
+          <h2 className="font-semibold">Қорытынды және ұсыныс</h2>
+          {sf.strengths.length > 0 && (
+            <p><span className="text-slate-500">Күшті жақтар:</span> {sf.strengths.map((o) => <span key={o.id} className="mr-1 inline-block rounded-full bg-emerald-50 px-2 py-0.5 font-mono text-xs text-emerald-800">{o.code} · {o.pct}%</span>)}</p>
+          )}
+          {sf.weak.length > 0 && (
+            <div>
+              <p>Ең көп балл жоғалған мақсаттар (50%-дан төмен) — мақсат бойынша дайындықтан өтіңіз:</p>
+              {view.isOwner && (
+                <ul className="mt-1 space-y-1">{sf.weak.slice(0, 3).map((o) => (
+                  <li key={o.id} className="flex items-center justify-between gap-2"><span><span className="font-mono text-xs">{o.code}</span> · {o.pct}%</span><StartObjective objectiveId={o.id} label="Бастау →" /></li>
+                ))}</ul>
+              )}
+            </div>
+          )}
+          {sf.mistakesAdded > 0 && (
+            <p>«Қателермен жұмысқа» {sf.mistakesAdded} есеп түрі қосылды — ертең бастап қайталау ұсынылады. {view.isOwner && <Link href="/review" className="text-brand-600 underline">Ашу →</Link>}</p>
+          )}
+          {sf.recommendation === 'next' && !sf.pending && <p>Барлық тапсырма толық балмен орындалды. Келесі тақырыпқа өтуге немесе күрделірек нұсқа шығаруға болады.</p>}
+          {sf.recommendation !== 'next' && sf.weak.length === 0 && <p>Мақсаттардың бәрі 50%-дан жоғары. Жоғалған балдарды «Жоғалған балдар» бөлімінен қарап, қателерді түзетіңіз.</p>}
+          {sf.pending && <p className="text-amber-700">Ашық жауаптар тексерілгеннен кейін кері байланыс жаңарады.</p>}
+        </section>
+      )}
+
+      {!fb && !sf && r?.feedback_json?.by_unit && r.feedback_json.by_unit.length > 0 && (
         <section className="card">
           <h2 className="mb-2 font-semibold">Бөлімдер кесіндісі</h2>
           <ul className="space-y-1 text-sm">
@@ -127,7 +221,7 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
         const full = it.awarded_marks === it.max_marks;
         const pending = it.marking_state === 'pending';
         return (
-          <section key={it.id} className={`card space-y-2 border-l-4 ${pending ? 'border-l-amber-400' : full ? 'border-l-emerald-500' : 'border-l-red-400'}`}>
+          <section key={it.id} id={`item-${it.id}`} className={`scroll-mt-20 card space-y-2 border-l-4 ${pending ? 'border-l-amber-400' : full ? 'border-l-emerald-500' : 'border-l-red-400'}`}>
             <div className="flex justify-between">
               <h2 className="font-semibold">{it.sequence_no}-тапсырма</h2>
               <span className="chip">{pending ? 'тексерілуде' : `${it.awarded_marks ?? 0}/${it.max_marks}`}</span>
