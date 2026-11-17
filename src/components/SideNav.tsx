@@ -11,7 +11,7 @@ export function SideNav({ items, due, vertical }: { items: { href: string; label
       {items.map((i) => {
         const on = path === i.href || (i.href !== '/dashboard' && path.startsWith(i.href + '/')) || path === i.href;
         return (
-          <Link key={i.href} href={i.href} aria-current={on ? 'page' : undefined} className={`nav-link ${vertical ? 'min-h-11' : ''} ${on ? 'font-semibold text-slate-900' : ''}`}>
+          <Link key={i.href} href={i.href} aria-current={on ? 'page' : undefined} className={`nav-link ${vertical ? 'min-h-11 lg:min-h-9' : ''} ${on ? 'font-semibold text-slate-900' : ''}`}>
             <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${on ? 'bg-brand-600' : 'bg-transparent'}`} />
             {i.label}
             {i.href === '/review' && due > 0 && <span className="ml-auto rounded-full bg-brand-600 px-1.5 text-[11px] font-semibold text-white">{due}</span>}
