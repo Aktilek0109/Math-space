@@ -3,6 +3,7 @@ import { requireUser, isStaff } from '@/lib/auth';
 import { LogoutButton } from '@/components/LogoutButton';
 import { SideNav } from '@/components/SideNav';
 import { Avatar } from '@/components/Avatar';
+import { MobileMenu } from '@/components/MobileMenu';
 import { isMeskGrade } from '@/lib/catalog';
 import { createClient } from '@/lib/supabase/server';
 
@@ -41,18 +42,38 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-dvh lg:flex">
       <aside className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50/95 backdrop-blur lg:h-dvh lg:w-60 lg:shrink-0 lg:border-b-0 lg:border-r lg:bg-transparent">
-        <div className="flex items-center gap-3 px-4 py-2 lg:h-full lg:flex-col lg:items-stretch lg:gap-6 lg:px-4 lg:py-6">
+        {/* Телефон: логотип + ☰ */}
+        <div className="flex min-h-14 items-center justify-between gap-3 px-3 py-1.5 lg:hidden">
+          <MobileMenu due={due}>
+            <SideNav items={items} due={due} vertical />
+            <div className="mt-auto flex flex-col gap-3 border-t border-slate-200 pt-4">
+              <Link href="/profile" className="flex items-center gap-2.5 text-sm">
+                <Avatar id={profile.id} name={profile.full_name || profile.username} path={avatarPath} size={36} />
+                <span className="flex min-w-0 flex-col leading-tight">
+                  <span className="truncate font-semibold text-slate-900">{profile.full_name || profile.username}</span>
+                  <span className="truncate text-xs text-slate-500">{roleLabel}</span>
+                </span>
+              </Link>
+              <LogoutButton />
+            </div>
+          </MobileMenu>
+          <Link href="/dashboard" className="flex items-center gap-2 font-bold text-slate-900">
+            <span aria-hidden="true" className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-brand-600 text-white">∑</span>
+            <span className="text-[17px]">Math-space</span>
+          </Link>
+          <Link href="/profile" aria-label="Профиль"><Avatar id={profile.id} name={profile.full_name || profile.username} path={avatarPath} size={34} /></Link>
+        </div>
+        {/* Компьютер: бүйір мәзір */}
+        <div className="hidden h-full flex-col gap-6 px-4 py-6 lg:flex">
           <Link href="/dashboard" className="flex items-center gap-2.5 font-bold text-slate-900">
             <span aria-hidden="true" className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-brand-600 text-white">∑</span>
-            <span className="hidden text-[17px] sm:inline">Math-space</span>
+            <span className="text-[17px]">Math-space</span>
           </Link>
-          <div className="min-w-0 flex-1 lg:flex-none">
-            <SideNav items={items} due={due} />
-          </div>
-          <div className="flex items-center gap-2 lg:mt-auto lg:flex-col lg:items-stretch lg:gap-3 lg:border-t lg:border-slate-200 lg:pt-4">
+          <SideNav items={items} due={due} vertical />
+          <div className="mt-auto flex flex-col gap-3 border-t border-slate-200 pt-4">
             <Link href="/profile" className="flex items-center gap-2.5 rounded-lg text-sm hover:opacity-80" title="Профиль">
               <Avatar id={profile.id} name={profile.full_name || profile.username} path={avatarPath} size={36} />
-              <span className="hidden min-w-0 flex-col leading-tight md:flex">
+              <span className="flex min-w-0 flex-col leading-tight">
                 <span className="truncate font-semibold text-slate-900">{profile.full_name || profile.username}</span>
                 <span className="truncate text-xs text-slate-500">{roleLabel}</span>
               </span>
