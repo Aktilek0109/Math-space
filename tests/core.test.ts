@@ -186,3 +186,16 @@ test('шешім жолдарын тексеру', () => {
   assert.deepEqual(st(['2x+3=7', '2x=4', 'x=3']), ['ok', 'ok', 'error']);
   assert.equal(st(['\\sqrt{x+2}=x', 'x+2=x^2'])[1], 'warn');
 });
+
+import { nextReview, INTERVALS_DAYS } from '../src/lib/mistakes.ts';
+import { hintFactor } from '../src/lib/hints.ts';
+test('қателермен жұмыс: аралық кестесі және кеңес айыппұлы', () => {
+  const t0 = new Date('2026-11-17T00:00:00Z');
+  let m = { stage: 0, correct_streak: 0 };
+  let n = nextReview(m, true, t0); assert.equal(n.stage, 1); assert.equal(n.status, 'active');
+  assert.equal(new Date(n.due_at).getTime() - t0.getTime(), INTERVALS_DAYS[1] * 86_400_000);
+  n = nextReview({ stage: 1, correct_streak: 1 }, true, t0); n = nextReview({ stage: n.stage, correct_streak: n.correct_streak }, true, t0);
+  assert.equal(n.status, 'mastered');
+  n = nextReview({ stage: 3, correct_streak: 2 }, false, t0); assert.equal(n.stage, 0); assert.equal(n.correct_streak, 0);
+  assert.equal(hintFactor(0), 1); assert.equal(hintFactor(1), 0.75); assert.equal(hintFactor(2), 0.5); assert.equal(hintFactor(5), 0.5);
+});

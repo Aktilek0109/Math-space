@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { requireUser, isStaff } from '@/lib/auth';
 import { LogoutButton } from '@/components/LogoutButton';
 import { isMeskGrade } from '@/lib/catalog';
+import { createClient } from '@/lib/supabase/server';
 
 const NAV = [
   { href: '/dashboard', label: 'Басты бет' },
@@ -9,6 +10,7 @@ const NAV = [
   { href: '/library', label: 'Кітапхана' },
   { href: '/homework', label: 'Үй жұмысы' },
   { href: '/practice', label: 'БЖБ/ТЖБ' },
+  { href: '/review', label: 'Қателермен жұмыс' },
   { href: '/mesk', label: 'МЭСК' },
   { href: '/results', label: 'Нәтижелер' },
 ];
@@ -18,6 +20,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const staff = isStaff(profile);
   const nav = NAV.filter((i) => i.href !== '/mesk' || staff || isMeskGrade(profile.current_grade));
   const items = staff ? [...nav, { href: '/admin', label: 'Басқару' }] : nav;
+  // Бүгін қайталауға мерзімі жеткен қате түрлерінің саны
+  let due = 0;
+  try {
+    const supabase = await createClient();
+    const { count } = await supabase.from('mistakes').select('id', { count: 'exact', head: true })
+      .eq('student_id', profile.id).eq('status', 'active').lte('due_at', new Date().toISOString());
+    due = count ?? 0;
+  } catch { /* кесте жоқ болса — белгісіз */ }
 
   return (
     <div className="min-h-dvh">
@@ -31,6 +41,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             {items.map((i) => (
               <Link key={i.href} href={i.href} className="whitespace-nowrap rounded-md px-3 py-1.5 text-slate-700 hover:bg-slate-100">
                 {i.label}
+                {i.href === '/review' && due > 0 && <span className="ml-1 rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">{due}</span>}
               </Link>
             ))}
           </nav>

@@ -60,6 +60,7 @@ export function SessionRunner(props: {
   const [submitting, setSubmitting] = useState(false);
   const [left, setLeft] = useState<number | null>(deadline ? Math.max(0, Math.floor((new Date(deadline).getTime() - Date.now()) / 1000)) : null);
   const submittedRef = useRef(false);
+  const [hints, setHints] = useState<Record<string, { level: number; text: string }[]>>({});
 
   const save = useCallback(
     async (ids?: string[]) => {
@@ -135,6 +136,14 @@ export function SessionRunner(props: {
   function update(id: string, patch: ResponseValue) {
     setAnswers((a) => ({ ...a, [id]: { ...a[id], ...patch } }));
     setDirty((d) => new Set(d).add(id));
+  }
+
+  async function hint(id: string) {
+    setError(null);
+    const level = Math.min(2, (hints[id]?.length ?? 0) + 1);
+    const res = await apiFetch<{ hints_used: number; hints: { level: number; text: string }[] }>(`/api/sessions/${sessionId}/items/${id}/hint`, { method: 'POST', json: { level } });
+    if (!res.ok) { setError(failureText(res.failure)); return; }
+    setHints((h) => ({ ...h, [id]: res.data.hints }));
   }
 
   async function reveal(id: string) {
@@ -298,10 +307,29 @@ export function SessionRunner(props: {
               />
             )}
 
+            {mode === 'practice' && !it.revealed && (hints[it.id]?.length ?? 0) > 0 && (
+              <div className="space-y-1.5 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm">
+                {hints[it.id].map((h) => (
+                  <div key={h.level}>
+                    <span className="mr-1 font-semibold text-sky-800">{h.level === 1 ? '💡 Бағыт:' : '👣 Бірінші қадам:'}</span>
+                    <MathText text={h.text} />
+                  </div>
+                ))}
+                <p className="text-xs text-sky-700">Әр көмек балдың 25%-ын алады.</p>
+              </div>
+            )}
+
             {mode === 'practice' && !it.revealed && (
-              <button type="button" className="btn btn-secondary" onClick={() => reveal(it.id)} disabled={!answers[it.id]}>
-                Тексеру және шешімін көру
-              </button>
+              <div className="flex flex-wrap gap-2">
+                {(hints[it.id]?.length ?? 0) < 2 && (
+                  <button type="button" className="btn btn-secondary" onClick={() => hint(it.id)} title="Әр көмек балдың 25%-ын алады">
+                    {(hints[it.id]?.length ?? 0) === 0 ? '💡 Көмек (−25%)' : '👣 Келесі көмек (−25%)'}
+                  </button>
+                )}
+                <button type="button" className="btn btn-secondary" onClick={() => reveal(it.id)} disabled={!answers[it.id]}>
+                  Тексеру және шешімін көру
+                </button>
+              </div>
             )}
 
             {it.revealed && it.key && (

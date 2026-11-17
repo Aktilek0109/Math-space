@@ -30,7 +30,7 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
     )}
     <SessionRunner
       sessionId={sessionId}
-      title={`${EXAM_LABEL[view.session.exam_type]} · ${view.session.grade}-сынып`}
+      title={(view.session.parameters_json as { purpose?: string } | null | undefined)?.purpose === 'review' ? 'Қателермен жұмыс' : `${EXAM_LABEL[view.session.exam_type]} · ${view.session.grade}-сынып`}
       mode={view.session.mode}
       deadline={view.session.deadline_at}
       totalMarks={Number(view.session.total_marks)}

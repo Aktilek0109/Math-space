@@ -9,6 +9,8 @@ import { createRng, deriveSeed, newSeed, generateFromTemplate, getTemplate } fro
 import type { AnswerKey, PublicBody, QuestionType, RubricLine } from './generator/types';
 import { gradeResponse, type ResponseValue } from './grading';
 import type { MeskMockInput, PracticeGenerateInput } from './validation';
+import { buildHint, hintFactor, MAX_HINT_LEVEL } from './hints';
+import { recordOutcomes, pickReviewQuestions } from './mistakes';
 
 const GRACE_MS = 30_000; // желі кідірісіне шегініс
 
@@ -441,6 +443,7 @@ export interface SessionRow {
   deadline_at: string | null;
   submitted_at: string | null;
   total_marks: number;
+  parameters_json?: Record<string, unknown> | null;
 }
 
 /** RLS арқылы қолжетімділікті тексеріп сессияны алу (иесі не рұқсаты бар мұғалім). */
@@ -448,7 +451,7 @@ export async function getVisibleSession(sessionId: string): Promise<SessionRow> 
   const supabase = await createClient();
   const { data } = await supabase
     .from('practice_sessions')
-    .select('id, owner_id, exam_type, mode, grade, status, started_at, deadline_at, submitted_at, total_marks')
+    .select('id, owner_id, exam_type, mode, grade, status, started_at, deadline_at, submitted_at, total_marks, parameters_json')
     .eq('id', sessionId)
     .maybeSingle();
   if (!data) throw new ApiError(404, 'Сынақ табылмады');
@@ -573,8 +576,8 @@ export async function revealItem(sessionId: string, itemId: string, profile: Pro
   if (session.mode !== 'practice') throw new ApiError(403, 'Емтихан режимінде жауап тапсырғаннан кейін ашылады');
   const admin = createAdminClient();
   const [{ data: item }, { data: resp }, { data: key }] = await Promise.all([
-    admin.from('practice_items').select('id, question_type, max_marks').eq('id', itemId).eq('session_id', sessionId).single(),
-    admin.from('responses').select('id, response_json, revealed').eq('session_item_id', itemId).maybeSingle(),
+    admin.from('practice_items').select('id, question_id, question_type, max_marks').eq('id', itemId).eq('session_id', sessionId).single(),
+    admin.from('responses').select('id, response_json, revealed, hints_used').eq('session_item_id', itemId).maybeSingle(),
     admin.from('practice_item_keys').select('*').eq('practice_item_id', itemId).single(),
   ]);
   if (!item || !key) throw new ApiError(404, 'Тапсырма табылмады');
@@ -582,14 +585,24 @@ export async function revealItem(sessionId: string, itemId: string, profile: Pro
 
   const answer = key.private_answer_json as AnswerKey;
   const g = gradeResponse(item.question_type as QuestionType, answer, resp.response_json as ResponseValue, Number(item.max_marks));
+  const hints = Number(resp.hints_used ?? 0);
+  const awarded = g.awarded === null ? null : Math.round(g.awarded * hintFactor(hints) * 100) / 100;
   await admin
     .from('responses')
-    .update({ revealed: true, awarded_marks: g.awarded, marking_state: g.state === 'pending' ? 'self' : g.state })
+    .update({ revealed: true, awarded_marks: awarded, marking_state: g.state === 'pending' ? 'self' : g.state })
     .eq('id', resp.id);
+  if (!resp.revealed && (session.parameters_json as Record<string, unknown> | null)?.purpose !== 'review') {
+    try {
+      await recordOutcomes(admin, session.owner_id, session.parameters_json ?? null, [
+        { question_id: item.question_id as string | null, awarded, max: Number(item.max_marks), hints, steps: (resp.response_json as ResponseValue)?.steps },
+      ]);
+    } catch { /* қателер журналы негізгі әрекетке кедергі болмауы керек */ }
+  }
 
   return {
     correct: g.correct,
-    awarded: g.awarded,
+    awarded,
+    hints_used: hints,
     answer,
     solution: key.private_solution_json,
     rubric: key.private_rubric_json,
@@ -607,7 +620,7 @@ export async function finalizeSession(sessionId: string, actorId: string | null)
     .update({ status: 'submitting' })
     .eq('id', sessionId)
     .eq('status', 'in_progress')
-    .select('id, owner_id, deadline_at')
+    .select('id, owner_id, deadline_at, parameters_json')
     .maybeSingle();
 
   if (!claimed) {
@@ -618,14 +631,14 @@ export async function finalizeSession(sessionId: string, actorId: string | null)
 
   try {
     const [{ data: items }, { data: keys }, { data: responses }] = await Promise.all([
-      admin.from('practice_items').select('id, question_type, max_marks, unit_id, topic_id').eq('session_id', sessionId),
+      admin.from('practice_items').select('id, question_id, question_type, max_marks, unit_id, topic_id').eq('session_id', sessionId),
       admin
         .from('practice_item_keys')
         .select('practice_item_id, private_answer_json, practice_items!inner(session_id)')
         .eq('practice_items.session_id', sessionId),
       admin
         .from('responses')
-        .select('id, session_item_id, response_json, revealed, awarded_marks, marking_state, practice_items!inner(session_id)')
+        .select('id, session_item_id, response_json, revealed, hints_used, awarded_marks, marking_state, practice_items!inner(session_id)')
         .eq('practice_items.session_id', sessionId),
     ]);
     const keyMap = new Map<string, AnswerKey>((keys ?? []).map((k: any) => [k.practice_item_id as string, k.private_answer_json as AnswerKey]));
@@ -639,6 +652,7 @@ export async function finalizeSession(sessionId: string, actorId: string | null)
     const itemFeedback: { item_id: string; correct: boolean | null; awarded: number | null; max: number }[] = [];
     const now = new Date().toISOString();
     const upserts: object[] = [];
+    const outcomes: { question_id: string | null; awarded: number | null; max: number; hints: number; steps?: string[] }[] = [];
 
     for (const it of items ?? []) {
       const max = Number(it.max_marks);
@@ -646,7 +660,7 @@ export async function finalizeSession(sessionId: string, actorId: string | null)
       const g = gradeResponse(it.question_type as QuestionType, keyMap.get(it.id as string) ?? {}, r?.response_json as ResponseValue, max);
       // Бос ашық жауап → 0, тексеруді күтпейді
       const emptyOpen = g.state === 'pending' && !(r?.response_json as ResponseValue | undefined)?.text && !(r?.response_json as ResponseValue | undefined)?.parts;
-      const awarded = emptyOpen ? 0 : g.awarded;
+      const awarded = emptyOpen ? 0 : g.awarded === null ? null : Math.round(g.awarded * hintFactor(r?.hints_used) * 100) / 100;
       const state = emptyOpen ? 'auto' : g.state;
       if (state === 'pending') pending = true;
 
@@ -658,6 +672,9 @@ export async function finalizeSession(sessionId: string, actorId: string | null)
       byUnit.set((it.unit_id as string) ?? '—', u);
       if (g.correct === false && it.topic_id) wrongTopics.add(it.topic_id as string);
       itemFeedback.push({ item_id: it.id as string, correct: emptyOpen ? false : g.correct, awarded, max });
+      if (!r?.revealed || (claimed.parameters_json as Record<string, unknown> | null)?.purpose === 'review') {
+        outcomes.push({ question_id: (it.question_id as string) ?? null, awarded, max, hints: Number(r?.hints_used ?? 0), steps: (r?.response_json as ResponseValue | undefined)?.steps });
+      }
 
       upserts.push({
         session_item_id: it.id,
@@ -704,6 +721,7 @@ export async function finalizeSession(sessionId: string, actorId: string | null)
       .update({ status: pending ? 'submitted' : 'graded', submitted_at: now })
       .eq('id', sessionId);
     await audit(actorId, actorId ? 'session.submit' : 'session.auto_submit', 'practice_session', sessionId, { earned, possible });
+    try { await recordOutcomes(admin, claimed.owner_id as string, (claimed.parameters_json as Record<string, unknown>) ?? null, outcomes); } catch { /* */ }
 
     return { result, alreadySubmitted: false };
   } catch (e) {
@@ -747,4 +765,53 @@ export async function gradeManually(responseId: string, marks: number, grader: P
     .eq('session_id', item.session_id);
   if (!pending) await admin.from('practice_sessions').update({ status: 'graded' }).eq('id', item.session_id);
   await audit(grader.id, 'response.manual_grade', 'response', responseId, { marks });
+}
+
+/** Сатылы көмек: келесі сатыны ашу (тек жаттығу режимі). */
+export async function hintItem(sessionId: string, itemId: string, profile: Profile, level: number) {
+  const session = await ownedOpenSession(sessionId, profile);
+  if (session.mode !== 'practice') throw new ApiError(403, 'Емтихан режимінде көмек жоқ');
+  const admin = createAdminClient();
+  const [{ data: item }, { data: resp }, { data: key }] = await Promise.all([
+    admin.from('practice_items').select('id, question_id').eq('id', itemId).eq('session_id', sessionId).single(),
+    admin.from('responses').select('id, hints_used, revealed').eq('session_item_id', itemId).maybeSingle(),
+    admin.from('practice_item_keys').select('private_solution_json').eq('practice_item_id', itemId).single(),
+  ]);
+  if (!item || !key) throw new ApiError(404, 'Тапсырма табылмады');
+  if (resp?.revealed) throw new ApiError(409, 'Шешімі ашылған');
+  const used = Number(resp?.hints_used ?? 0);
+  const lvl = Math.max(1, Math.min(MAX_HINT_LEVEL, level));
+  if (lvl > used + 1) throw new ApiError(400, 'Алдымен алдыңғы көмекті ашыңыз');
+  let codes: string[] = [];
+  if (item.question_id) {
+    const { data: objs } = await admin.from('question_objectives').select('weight, learning_objectives(code)').eq('question_id', item.question_id);
+    codes = ((objs ?? []) as unknown as { weight: number; learning_objectives: { code: string } | null }[])
+      .sort((a, b) => Number(b.weight) - Number(a.weight)).map((o) => o.learning_objectives?.code).filter(Boolean) as string[];
+  }
+  const hints: { level: number; text: string }[] = [];
+  const upto = Math.max(lvl, used);
+  for (let k = 1; k <= upto; k++) hints.push({ level: k, text: buildHint(k, { objectiveCodes: codes, solutionText: (key.private_solution_json as { text?: string })?.text ?? '' }) });
+  if (upto > used) {
+    if (resp) await admin.from('responses').update({ hints_used: upto }).eq('id', resp.id);
+    else await admin.from('responses').insert({ session_item_id: itemId, user_id: profile.id, response_json: {}, hints_used: upto });
+  }
+  return { hints_used: upto, hints };
+}
+
+/** Қателермен жұмыс: бүгінгі қайталау сессиясы. */
+export async function buildReviewSession(profile: Profile) {
+  const admin = createAdminClient();
+  const { picks, grade } = await pickReviewQuestions(admin, profile.id);
+  if (!picks.length) throw new ApiError(409, 'Бүгін қайталайтын есеп жоқ');
+  const ids = picks.map((p) => p.question_id);
+  const { data, error } = await admin.from('questions').select('id, unit_id, body_json, question_type, marks, difficulty, question_topics(topic_id)').in('id', ids);
+  if (error) throw error;
+  const byId = new Map(((data ?? []) as unknown as QuestionRow[]).map((r) => [r.id, r]));
+  const drafts = await questionDrafts(admin, ids.filter((i) => byId.has(i)), byId);
+  const sessionId = await persistSession(
+    admin,
+    { owner_id: profile.id, exam_type: 'BZhB', mode: 'practice', grade: grade ?? 9, parameters_json: { purpose: 'review', title: 'Қателермен жұмыс', review: picks }, seed: newSeed() },
+    drafts,
+  );
+  return { sessionId };
 }
