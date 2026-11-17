@@ -37,7 +37,7 @@ export const POST = handler(async (req: Request) => {
     { role: 'user', content: [{ type: 'text', text: input.context ? `Problem (for context only): ${input.context}` : 'Transcribe.' }, { type: 'image_url', image_url: { url: input.image } }] },
   ];
   let model = process.env.CF_AI_MODEL || PRIMARY;
-  let out;
+  let out: Awaited<ReturnType<typeof callModel>>;
   try {
     out = await callModel(model, messages);
   } catch (e) {
