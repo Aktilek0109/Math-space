@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { requireUser, isStaff } from '@/lib/auth';
 import { LogoutButton } from '@/components/LogoutButton';
 import { SideNav } from '@/components/SideNav';
+import { Avatar } from '@/components/Avatar';
 import { isMeskGrade } from '@/lib/catalog';
 import { createClient } from '@/lib/supabase/server';
 
@@ -25,14 +26,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const items = staff ? [...nav, { href: '/admin', label: 'Басқару' }] : nav;
   // Бүгін қайталауға мерзімі жеткен қате түрлерінің саны
   let due = 0;
+  let avatarPath: string | null = null;
   try {
     const supabase = await createClient();
     const { count } = await supabase.from('mistakes').select('id', { count: 'exact', head: true })
       .eq('student_id', profile.id).eq('status', 'active').lte('due_at', new Date().toISOString());
     due = count ?? 0;
+    const { data: me } = await supabase.from('profiles').select('avatar_path').eq('id', profile.id).maybeSingle();
+    avatarPath = (me?.avatar_path as string | null) ?? null;
   } catch { /* кесте жоқ болса — белгісіз */ }
 
-  const initials = (profile.full_name || profile.username).split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('');
   const roleLabel = profile.role === 'admin' ? 'Әкімші' : profile.role === 'teacher' ? 'Мұғалім' : profile.current_grade ? `${profile.current_grade}-сынып · оқушы` : 'Оқушы';
 
   return (
@@ -48,7 +51,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
           <div className="flex items-center gap-2 lg:mt-auto lg:flex-col lg:items-stretch lg:gap-3 lg:border-t lg:border-slate-200 lg:pt-4">
             <Link href="/profile" className="flex items-center gap-2.5 rounded-lg text-sm hover:opacity-80" title="Профиль">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-bold text-brand-700">{initials}</span>
+              <Avatar id={profile.id} name={profile.full_name || profile.username} path={avatarPath} size={36} />
               <span className="hidden min-w-0 flex-col leading-tight md:flex">
                 <span className="truncate font-semibold text-slate-900">{profile.full_name || profile.username}</span>
                 <span className="truncate text-xs text-slate-500">{roleLabel}</span>
