@@ -14,7 +14,7 @@ export default async function ObjectivesPage({ searchParams }: { searchParams: P
   const profile = await requireUser();
   const admin = createAdminClient();
   const sp = await searchParams;
-  const grade = Number(sp.grade) || (profile.current_grade && [8, 9].includes(profile.current_grade) ? profile.current_grade : 9);
+  const grade = Number(sp.grade) || (profile.current_grade && [7, 8, 9, 10].includes(profile.current_grade) ? profile.current_grade : 9);
   const [{ data: objs }, { data: counts }, { data: units }, mastery] = await Promise.all([
     admin.from('learning_objectives').select('id, code, text, unit_id, sort_order').eq('grade', grade).order('sort_order'),
     admin.rpc('objective_bank_counts', { p_grade: grade }),
@@ -38,7 +38,7 @@ export default async function ObjectivesPage({ searchParams }: { searchParams: P
           Соңғы 5 есептің орташасы {Math.round(MASTERY * 100)}%-дан асса (жоғары деңгей есебімен қоса), мақсат меңгерілді деп саналады. Соңында кері байланыс беріледі.
         </p>
         <div className="flex gap-2 pt-1 text-sm">
-          {[8, 9].map((g) => (
+          {[7, 8, 9, 10].map((g) => (
             <Link key={g} href={`/objectives?grade=${g}`} className={`rounded-full px-3 py-1 ${g === grade ? 'bg-slate-900 text-white' : 'bg-slate-100'}`}>{g}-сынып</Link>
           ))}
         </div>
