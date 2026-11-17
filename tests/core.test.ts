@@ -241,3 +241,41 @@ test('М5: түстер шкаласы және жеке үй жұмысына �
   assert.deepEqual(personalLevels(30), [1, 2]);
   assert.equal(isDrop(60, 70), true); assert.equal(isDrop(68, 70), false); assert.equal(isDrop(60, null), false);
 });
+
+import { checkGraph } from '../src/lib/tools/graphcheck.ts';
+import { checkGeo, recognize } from '../src/lib/tools/geocheck.ts';
+test('М6: график тақтасы — нүктелер мен қисық кілт графигімен салыстырылады', () => {
+  const key = { kind: 'plot' as const, x: [-4, 4] as [number, number], y: [-2, 10] as [number, number], curves: [{ expr: 'x^2' }], points: [{ x: 0, y: 0, label: 'O' }] };
+  const good = checkGraph({ kind: 'graph', objs: [{ t: 'pt', p: [0, 0] }, { t: 'pt', p: [2, 4] }, { t: 'curve', pts: Array.from({ length: 41 }, (_, i) => { const x = -3 + i * 0.15; return [x, x * x] as [number, number]; }) }] }, key);
+  assert.ok(good.every((c) => c.status === 'ok'), JSON.stringify(good));
+  const bad = checkGraph({ kind: 'graph', objs: [{ t: 'pt', p: [2, 3] }, { t: 'curve', pts: Array.from({ length: 41 }, (_, i) => { const x = -3 + i * 0.15; return [x, x * x + 2] as [number, number]; }) }] }, key);
+  assert.ok(bad.some((c) => c.status === 'error' && /жатпайтын/.test(c.text)));
+  assert.ok(bad.some((c) => c.status === 'error' && /ауытқиды/.test(c.text)));
+  assert.ok(bad.some((c) => c.status === 'warn' && /Маңызды/.test(c.text)));
+});
+test('М7: геометрия тақтасы — ниет тексеріледі, эскиз танылады', () => {
+  const key = { kind: 'geometry' as const, points: { A: [0, 0] as [number, number], B: [15, 0] as [number, number], C: [3, 6] as [number, number], H: [3, 0] as [number, number] }, polygons: [['A', 'B', 'C']], segments: [['C', 'H']], right: [['C', 'A', 'B'], ['H', 'B', 'C']], lengths: [{ seg: ['A', 'H'] as [string, string], text: '3' }] };
+  const pts = [{ id: 'a', label: 'A', p: [50, 300] as [number, number] }, { id: 'b', label: 'B', p: [450, 300] as [number, number] }, { id: 'c', label: 'C', p: [130, 140] as [number, number] }, { id: 'h', label: 'H', p: [130, 300] as [number, number] }];
+  const objs = [{ t: 'seg' as const, a: 'a', b: 'b' }, { t: 'seg' as const, a: 'b', b: 'c' }, { t: 'seg' as const, a: 'c', b: 'a' }, { t: 'seg' as const, a: 'c', b: 'h' }, { t: 'right' as const, at: 'h', a: 'b', b: 'c' }, { t: 'len' as const, a: 'a', b: 'h', text: '3' }];
+  const r = checkGeo({ kind: 'board', points: pts, objs }, key);
+  assert.ok(!r.some((c) => c.status === 'error'), JSON.stringify(r));
+  const r2 = checkGeo({ kind: 'board', points: [...pts.slice(0, 3), { id: 'h', label: 'H', p: [200, 250] }], objs: objs.slice(0, 3) }, key);
+  assert.ok(r2.some((c) => /CH/.test(c.text)) && r2.some((c) => /кесіндісінде жатуы/.test(c.text)) && r2.some((c) => /тік болуы керек/.test(c.text)), JSON.stringify(r2));
+  const circ = recognize(Array.from({ length: 40 }, (_, i) => [100 + 50 * Math.cos((i / 39) * 2 * Math.PI), 100 + 50 * Math.sin((i / 39) * 2 * Math.PI)] as [number, number]));
+  assert.equal(circ?.kind, 'circle');
+  const tri = recognize([[0, 0], [50, 1], [100, 0], [75, 40], [50, 80], [25, 40], [1, 1]]);
+  assert.equal(tri?.kind, 'poly'); assert.equal((tri as { pts: unknown[] }).pts.length, 3);
+});
+
+import { polyhedron, section, edgePoint } from '../src/lib/tools/solids.ts';
+test('М8: көпжақ қимасы', () => {
+  const cube = polyhedron('cube')!;
+  const A = cube.verts[0], C = cube.verts[2], A1 = cube.verts[4];
+  assert.equal(section(cube, [A, C, A1]).length, 4, 'диагональдық қима — тіктөртбұрыш');
+  const mid = (i: number, j: number) => edgePoint(cube, cube.edges.findIndex(([a, b]) => (a === i && b === j) || (a === j && b === i)), 0.5).v;
+  // AB, BB1(… ) ортасы арқылы — алтыбұрыш (тұрақты қима)
+  const hex = section(cube, [mid(0, 1), mid(1, 5), mid(5, 6)]);
+  assert.equal(hex.length, 6);
+  const pyr = polyhedron('pyr4')!;
+  assert.equal(section(pyr, [pyr.verts[0], pyr.verts[2], pyr.verts[4]]).length, 3, 'пирамиданың диагональдық қимасы — үшбұрыш');
+});

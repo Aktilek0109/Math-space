@@ -13,6 +13,7 @@ const NAV = [
   { href: '/objectives', label: 'Оқу мақсаттары' },
   { href: '/review', label: 'Қателермен жұмыс' },
   { href: '/mesk', label: 'МЭСК' },
+  { href: '/tools', label: 'Құралдар' },
   { href: '/results', label: 'Нәтижелер' },
 ];
 

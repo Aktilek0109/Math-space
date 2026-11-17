@@ -11,6 +11,7 @@ import { MarkScheme } from '@/components/MarkScheme';
 import { objectiveFeedback } from '@/lib/objective';
 import { sessionFeedback } from '@/lib/feedback';
 import { StartObjective } from '@/app/(app)/objectives/StartObjective';
+import { ToolPanel } from '@/components/tools/ToolPanel';
 
 function showResponse(r: { choice?: string; choices?: string[]; value?: string; text?: string; parts?: Record<string, string> } | null) {
   if (!r) return '—';
@@ -238,6 +239,7 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
                 {it.body.options.map((o) => <li key={o.id}><b>{o.id})</b> <MathText text={o.text} /></li>)}
               </ul>
             )}
+            {it.response?.sketch && <ToolPanel readOnly tool={it.tool} sketch={it.response.sketch} bodyFigure={(it.body as { figure?: unknown }).figure} keyFigures={it.key ? ((it.key.solution as { figures?: unknown[] }).figures ?? []) : []} />}
             <p className="text-sm"><span className="text-slate-500">Сіздің жауабыңыз:</span> <span className="whitespace-pre-wrap">{showResponse(it.response)}</span></p>
             {it.key && (
               <div className="rounded-lg bg-slate-50 p-3 text-sm">

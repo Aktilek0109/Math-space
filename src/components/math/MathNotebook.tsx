@@ -18,12 +18,31 @@ export function MathNotebook(props: {
   maxLines?: number;
   /** Жол-жолымен тексеру нәтижесі (жаттығу режимінде) */
   checks?: StepCheck[];
+  /** М9: «📷 Суреттен» — дәптердегі шешімді ЖИ оқиды, оқушы түзетіп растайды (есеп шарты — контекст) */
+  photoContext?: string;
 }) {
   const { disabled, maxLines = 40 } = props;
   const lines = props.lines.length ? props.lines : [''];
   const [active, setActive] = useState<number | null>(null);
   const [ready, setReady] = useState(false);
   const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [ocr, setOcr] = useState<'idle' | 'busy' | 'done'>('idle');
+  const [ocrErr, setOcrErr] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function fromPhoto(file: File) {
+    setOcr('busy'); setOcrErr(null);
+    try {
+      const image = await compressImage(file);
+      const res = await fetch('/api/ocr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image, context: props.photoContext?.slice(0, 1500) }) });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) { setOcrErr(body.error ?? 'Суретті оқу мүмкін болмады'); setOcr('idle'); return; }
+      props.onChange((body.lines as string[]).slice(0, maxLines));
+      setOcr('done');
+    } catch {
+      setOcrErr('Суретті өңдеу мүмкін болмады'); setOcr('idle');
+    }
+  }
 
   useEffect(() => {
     if (disabled) return;
@@ -53,8 +72,25 @@ export function MathNotebook(props: {
     <div className="rounded-xl border border-slate-200 bg-white" aria-label={props.label ?? 'Калькулятор: шешім жолдары'}>
       <div className="flex items-center justify-between border-b border-slate-100 px-3 py-1.5 text-xs text-slate-500">
         <span>🧮 Шешім жолдары · соңғы жол — жауап</span>
-        {!disabled && <span>↵ — жаңа жол</span>}
+        <span className="flex items-center gap-2">
+          {!disabled && props.photoContext !== undefined && (
+            <>
+              <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void fromPhoto(f); }} />
+              <button type="button" className="rounded border border-slate-200 px-1.5 py-0.5 text-slate-600 hover:bg-slate-50" onClick={() => fileRef.current?.click()} disabled={ocr === 'busy'} title="Дәптердегі шешімді суретке түсіріп жіберу">
+                {ocr === 'busy' ? 'Оқылуда…' : '📷 Суреттен'}
+              </button>
+            </>
+          )}
+          {!disabled && <span>↵ — жаңа жол</span>}
+        </span>
       </div>
+      {ocr === 'done' && !disabled && (
+        <div className="flex items-start justify-between gap-2 border-b border-amber-100 bg-amber-50 px-3 py-1.5 text-xs text-amber-900">
+          <span>🤖 ЖИ суреттен былай оқыды. Әр жолды тексеріп, қате оқылғанын түзетіңіз — содан кейін ғана тексеріледі.</span>
+          <button type="button" className="shrink-0 rounded bg-amber-200 px-2 py-0.5 font-medium" onClick={() => setOcr('idle')}>Дұрыс ✓</button>
+        </div>
+      )}
+      {ocrErr && <div className="border-b border-red-100 bg-red-50 px-3 py-1 text-xs text-red-700">{ocrErr}</div>}
       <div className="divide-y divide-dashed divide-slate-100">
         {lines.map((l, i) => {
           const isActive = !disabled && ready && active === i;
@@ -82,7 +118,7 @@ export function MathNotebook(props: {
                   </button>
                 )}
               </div>
-              <Mark c={props.checks?.[i]} show={!!l.trim() && lines.filter((x) => x.trim()).length > 1} />
+              <Mark c={ocr === 'done' ? undefined : props.checks?.[i]} show={!!l.trim() && lines.filter((x) => x.trim()).length > 1} />
               {!disabled && (
                 <div className={`flex shrink-0 gap-0.5 ${isActive ? '' : 'opacity-0 group-hover:opacity-100'}`}>
                   <button type="button" className="rounded px-1.5 text-slate-400 hover:bg-slate-100" title="Жолды көшіріп астына қою" onClick={() => addLine(i, true)}>⤓</button>
@@ -90,7 +126,7 @@ export function MathNotebook(props: {
                 </div>
               )}
             </div>
-            {props.checks?.[i]?.reason && l.trim() && (
+            {ocr !== 'done' && props.checks?.[i]?.reason && l.trim() && (
               <p className={`ml-6 mt-0.5 text-xs ${props.checks[i].status === 'error' ? 'text-red-600' : 'text-amber-700'}`}>{props.checks[i].reason}</p>
             )}
             </div>
@@ -161,4 +197,19 @@ function Mark({ c, show }: { c?: StepCheck; show: boolean }) {
   if (!show || !c || c.status === 'unknown') return <span className="w-5 shrink-0" />;
   const m = { ok: ['✓', 'text-emerald-600', 'Дұрыс'], error: ['✗', 'text-red-600', 'Қате'], warn: ['!', 'text-amber-600', 'Назар аударыңыз'] }[c.status];
   return <span className={`w-5 shrink-0 text-center font-bold ${m[1]}`} title={c.reason ?? m[2]} aria-label={c.reason ?? m[2]}>{m[0]}</span>;
+}
+
+/** Суретті қысу: ұзын жағы ≤ 1400 px, JPEG ~0.7 (ТЗ М9) */
+async function compressImage(file: File): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = url; });
+    const k = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height);
+    let q = 0.72, out = c.toDataURL('image/jpeg', q);
+    while (out.length > 2_500_000 && q > 0.35) { q -= 0.12; out = c.toDataURL('image/jpeg', q); }
+    return out;
+  } finally { URL.revokeObjectURL(url); }
 }

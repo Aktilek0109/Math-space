@@ -36,8 +36,8 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
       mode={view.session.mode}
       deadline={view.session.deadline_at}
       totalMarks={Number(view.session.total_marks)}
-      items={view.items.map(({ id, sequence_no, question_type, body, max_marks, response, revealed, key, awarded_marks }) => ({
-        id, sequence_no, question_type, body, max_marks, response, revealed, awarded_marks,
+      items={view.items.map(({ id, sequence_no, question_type, body, max_marks, response, revealed, key, awarded_marks, tool }) => ({
+        id, sequence_no, question_type, body, max_marks, response, revealed, awarded_marks, tool,
         // Тек ашылған тапсырманың кілті ғана клиентке барады
         key: revealed ? key : null,
       }))}

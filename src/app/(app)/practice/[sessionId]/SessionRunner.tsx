@@ -11,6 +11,7 @@ import { parseNumber, type ResponseValue } from '@/lib/grading';
 import { MathNotebook } from '@/components/math/MathNotebook';
 import { answerFromLines } from '@/lib/latexnum';
 import { checkLines } from '@/lib/stepcheck';
+import { ToolPanel } from '@/components/tools/ToolPanel';
 
 interface Key { answer: AnswerKey; solution: { text: string }; rubric: RubricLine[] }
 interface Item {
@@ -21,6 +22,7 @@ interface Item {
   max_marks: number;
   response: ResponseValue | null;
   revealed: boolean;
+  tool?: 'calc' | 'graph' | 'board' | null;
   awarded_marks: number | null;
   key: Key | null;
 }
@@ -231,6 +233,14 @@ export function SessionRunner(props: {
             </div>
             <div className="space-y-3">
             <p className="text-xs text-slate-500">{TYPE_HINT[it.question_type]}</p>
+            <ToolPanel
+              tool={it.tool}
+              sketch={a.sketch}
+              onSketch={(s) => update(it.id, { sketch: s })}
+              readOnly={locked}
+              bodyFigure={(it.body as { figure?: unknown }).figure}
+              keyFigures={it.revealed && it.key ? ((it.key.solution as { figures?: unknown[] }).figures ?? []) : null}
+            />
 
             {(it.question_type === 'single' || it.question_type === 'multi') && (
               <div className="space-y-2">
@@ -261,6 +271,7 @@ export function SessionRunner(props: {
             {it.question_type === 'numeric' && (
               <MathNotebook
                 lines={a.steps ?? (a.value ? [a.value] : [''])}
+                photoContext={it.body.text}
                 checks={mode === 'practice' && a.steps ? checkLines(a.steps) : undefined}
                 disabled={locked}
                 onChange={(ls) => update(it.id, { steps: ls, value: answerFromLines(ls) })}
@@ -307,6 +318,7 @@ export function SessionRunner(props: {
                           <MathNotebook
                             label={`${p.label}) калькулятор`}
                             lines={a.partSteps?.[p.label] ?? (val ? [val] : [''])}
+                            photoContext={`${it.body.text}\n${p.label}) ${p.text}`}
                             checks={mode === 'practice' && a.partSteps?.[p.label] ? checkLines(a.partSteps[p.label]) : undefined}
                             disabled={locked}
                             onChange={(ls) => update(it.id, { parts: { ...(a.parts ?? {}), [p.label]: answerFromLines(ls) }, partSteps: { ...(a.partSteps ?? {}), [p.label]: ls } })}

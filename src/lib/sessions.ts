@@ -474,9 +474,12 @@ export async function loadSessionView(sessionId: string, profile: Profile) {
   const supabase = await createClient();
   const { data: items } = await supabase
     .from('practice_items')
-    .select('id, sequence_no, question_type, public_snapshot_json, max_marks, unit_id, topic_id')
+    .select('id, question_id, sequence_no, question_type, public_snapshot_json, max_marks, unit_id, topic_id')
     .eq('session_id', sessionId)
     .order('sequence_no');
+  const qIds = [...new Set((items ?? []).map((i) => i.question_id as string | null).filter(Boolean))] as string[];
+  const { data: qTools } = qIds.length ? await createAdminClient().from('questions').select('id, tool').in('id', qIds) : { data: [] };
+  const toolOf = new Map(((qTools ?? []) as { id: string; tool: string | null }[]).map((q) => [q.id, q.tool]));
   const { data: responses } = await supabase
     .from('responses')
     .select('id, session_item_id, response_json, revealed, awarded_marks, marking_state')
@@ -532,6 +535,7 @@ export async function loadSessionView(sessionId: string, profile: Profile) {
         awarded_marks: r?.awarded_marks == null ? null : Number(r.awarded_marks),
         marking_state: (r?.marking_state as string | null) ?? null,
         key: keys.get(it.id as string) ?? null,
+        tool: (toolOf.get(it.question_id as string) ?? null) as 'calc' | 'graph' | 'board' | null,
       };
     }),
   };

@@ -109,7 +109,7 @@ export async function nextObjectiveItem(profile: Profile, sessionId: string) {
   return {
     done: false,
     level: d.level,
-    item: { id: it.id as string, sequence_no: seq, question_type: draft.question_type, body: draft.public_snapshot_json, max_marks: draft.max_marks, response: null, revealed: false, awarded_marks: null, key: null },
+    item: { id: it.id as string, sequence_no: seq, question_type: draft.question_type, body: draft.public_snapshot_json, max_marks: draft.max_marks, response: null, revealed: false, awarded_marks: null, key: null, tool: ((await admin.from('questions').select('tool').eq('id', q.id).maybeSingle()).data?.tool ?? null) as 'calc' | 'graph' | 'board' | null },
   };
 }
 

@@ -3,6 +3,8 @@
 import { MathNotebook } from '@/components/math/MathNotebook';
 import { answerFromLines } from '@/lib/latexnum';
 import { checkLines } from '@/lib/stepcheck';
+import { ToolPanel } from '@/components/tools/ToolPanel';
+import type { Sketch } from '@/lib/tools/types';
 
 import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -26,7 +28,7 @@ export interface TaskItem {
   learning_objectives: { code: string; text: string } | null;
 }
 interface AttemptFile { path: string; name: string; mime: string; size: number }
-interface Answer { value?: string; choice?: string; text?: string; parts?: Record<string, string>; steps?: string[]; partSteps?: Record<string, string[]> }
+interface Answer { value?: string; choice?: string; text?: string; parts?: Record<string, string>; steps?: string[]; partSteps?: Record<string, string[]>; sketch?: Sketch }
 interface Feedback { source: 'ai' | 'rule'; readable: boolean; unreadable_note?: string; done: string[]; met: number[]; next_step: string; correct: boolean | null; note?: string }
 export interface TaskAttempt {
   id: string;
@@ -264,9 +266,11 @@ function Editor({ item, kind, attempt, initial, readOnly, ctx, label, flush }: {
   if (flush) flush.current = () => save(files, ans, true);
 
   const opts = item.body_json.options;
+  const fig = (item.body_json as { figure?: { kind?: string } }).figure;
   return (
     <div className="space-y-2">
       {label && <div className="text-sm font-medium text-slate-700">{label}</div>}
+      <ToolPanel tool={fig?.kind === 'geometry' ? 'board' : fig?.kind === 'plot' ? 'graph' : null} sketch={ans.sketch} onSketch={(s) => setAns({ ...ans, sketch: s })} readOnly={readOnly} bodyFigure={fig} />
       {item.body_json.parts?.length ? (
         <ol className="space-y-2">
           {item.body_json.parts.map((p) => {
@@ -289,6 +293,7 @@ function Editor({ item, kind, attempt, initial, readOnly, ctx, label, flush }: {
                     <MathNotebook
                       label={`${p.label}) калькулятор`}
                       lines={ans.partSteps?.[p.label] ?? (v ? [v] : [''])}
+                      photoContext={`${item.body_json.text}\n${p.label}) ${p.text}`}
                       disabled={readOnly}
                       checks={ans.partSteps?.[p.label] ? checkLines(ans.partSteps[p.label]) : undefined}
                       onChange={(ls) => setAns({ ...ans, parts: { ...(ans.parts ?? {}), [p.label]: answerFromLines(ls) }, partSteps: { ...(ans.partSteps ?? {}), [p.label]: ls } })}
@@ -314,6 +319,7 @@ function Editor({ item, kind, attempt, initial, readOnly, ctx, label, flush }: {
           {item.question_type === 'numeric' ? (
             <MathNotebook
               lines={ans.steps ?? (ans.value ? [ans.value] : [''])}
+              photoContext={item.body_json.text}
               disabled={readOnly}
               checks={ans.steps ? checkLines(ans.steps) : undefined}
               onChange={(ls) => setAns({ ...ans, steps: ls, value: answerFromLines(ls) })}

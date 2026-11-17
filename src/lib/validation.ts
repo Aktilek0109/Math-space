@@ -56,6 +56,7 @@ export const responseValueSchema = z
     parts: z.record(z.string().max(10), z.string().max(5000)).optional(),
     steps: z.array(z.string().max(1000)).max(40).optional(),
     partSteps: z.record(z.string().max(10), z.array(z.string().max(1000)).max(40)).optional(),
+    sketch: z.record(z.string(), z.unknown()).refine((v) => JSON.stringify(v).length <= 60_000, 'Сызба тым үлкен').optional(),
   })
   .strict();
 

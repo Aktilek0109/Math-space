@@ -12,6 +12,8 @@ export interface ResponseValue {
   /** Калькулятордағы шешім жолдары (LaTeX) */
   steps?: string[];
   partSteps?: Record<string, string[]>;
+  /** М6–М8: тақтадағы сызба (графиктік/геометриялық/3D) */
+  sketch?: import('./tools/types.ts').Sketch;
 }
 
 export interface GradeOutcome {
