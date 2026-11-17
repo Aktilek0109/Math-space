@@ -47,6 +47,8 @@ export function SessionRunner(props: {
   deadline: string | null;
   totalMarks: number;
   items: Item[];
+  /** Оқу мақсаты бойынша бейімделетін режим (ТЗ М3) */
+  objective?: { code: string; text: string } | null;
 }) {
   const { sessionId, mode, deadline } = props;
   const [items, setItems] = useState(props.items);
@@ -60,6 +62,10 @@ export function SessionRunner(props: {
   const [submitting, setSubmitting] = useState(false);
   const [left, setLeft] = useState<number | null>(deadline ? Math.max(0, Math.floor((new Date(deadline).getTime() - Date.now()) / 1000)) : null);
   const submittedRef = useRef(false);
+  const [objDone, setObjDone] = useState<null | 'mastered' | 'limit' | 'exhausted'>(null);
+  const [nextBusy, setNextBusy] = useState(false);
+  const [levelNote, setLevelNote] = useState<string | null>(null);
+  const [curLevel, setCurLevel] = useState<number | null>(null);
   const [hints, setHints] = useState<Record<string, { level: number; text: string }[]>>({});
 
   const save = useCallback(
@@ -164,6 +170,23 @@ export function SessionRunner(props: {
     );
   }
 
+  const LV: Record<number, string> = { 1: 'жеңіл', 2: 'орта', 3: 'күрделі' };
+  async function nextItem() {
+    setError(null); setNextBusy(true);
+    const res = await apiFetch<{ done: boolean; reason?: 'mastered' | 'limit' | 'exhausted'; level?: number; item?: Item }>(`/api/objective/next`, { method: 'POST', json: { sessionId } });
+    setNextBusy(false);
+    if (!res.ok) { setError(failureText(res.failure)); return; }
+    if (res.data.done) { setObjDone(res.data.reason ?? 'limit'); return; }
+    const it = res.data.item!;
+    const lv = res.data.level ?? null;
+    setLevelNote(lv == null ? null : curLevel != null && lv > curLevel ? `Жарайсыз! Деңгей көтерілді: ${LV[lv]}` : curLevel != null && lv < curLevel ? `Деңгей сәл төмендеді: ${LV[lv]}. Қажет болса 💡 көмекті қолданыңыз.` : `Деңгей: ${LV[lv] ?? lv}`);
+    setCurLevel(lv);
+    setItems((l) => [...l, it]);
+    setTimeout(() => document.getElementById(`q-${it.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }
+  const totalMarks = props.objective ? items.reduce((s, i) => s + i.max_marks, 0) : props.totalMarks;
+  const lastRevealed = items.length > 0 && items[items.length - 1].revealed;
+
   const answered = items.filter((i) => {
     const a = answers[i.id];
     return a && (a.choice || a.choices?.length || a.value?.trim() || a.text?.trim() || Object.values<string>(a.parts ?? {}).some((v) => v.trim()));
@@ -175,7 +198,7 @@ export function SessionRunner(props: {
         <div>
           <h1 className="font-semibold">{props.title}</h1>
           <p className="text-xs text-slate-500">
-            {answered}/{items.length} жауап · {props.totalMarks} ұпай · {mode === 'practice' ? 'жаттығу' : 'емтихан'}
+            {props.objective ? <><span className="font-mono">{props.objective.code}</span> · {items.length} есеп · </> : <>{answered}/{items.length} жауап · </>}{totalMarks} ұпай · {mode === 'practice' ? 'жаттығу' : 'емтихан'}
             {' · '}
             <span aria-live="polite">{saveState === 'saving' ? 'сақталуда…' : saveState === 'saved' ? 'сақталды' : saveState === 'error' ? 'сақталмады!' : ''}</span>
           </p>
@@ -188,6 +211,9 @@ export function SessionRunner(props: {
       </header>
 
       <ErrorBox lines={error} />
+      {props.objective && !lastRevealed && levelNote && (
+        <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">{levelNote}</div>
+      )}
 
       {items.map((it) => {
         const a = answers[it.id] ?? {};
@@ -355,6 +381,22 @@ export function SessionRunner(props: {
         );
       })}
 
+      {props.objective && lastRevealed && !objDone && (
+        <div className="card flex flex-wrap items-center justify-between gap-2">
+          <span className="text-sm text-slate-600">Деңгей нәтижеңізге қарай өзгереді: қатарынан 2 дұрыс — қиынырақ, 2 қате — жеңілірек.</span>
+          <button className="btn btn-primary" onClick={nextItem} disabled={nextBusy}>{nextBusy ? 'Таңдалуда…' : 'Келесі есеп →'}</button>
+        </div>
+      )}
+      {props.objective && objDone && (
+        <div className={objDone === 'mastered' ? 'ok-box space-y-2' : 'card space-y-2'}>
+          <p className="font-semibold">
+            {objDone === 'mastered' ? '🎉 Мақсат меңгерілді!' : objDone === 'limit' ? 'Бүгінге жеткілікті — 15 есеп шығардыңыз.' : 'Бұл мақсат бойынша жаңа есептер таусылды.'}
+          </p>
+          <p className="text-sm">Аяқтап, кері байланысты көріңіз: қай деңгейде қалай шықты, қандай қателер қайталанды және не істеу керек.</p>
+          <button className="btn btn-primary" onClick={submit} disabled={submitting}>{submitting ? 'Тапсырылуда…' : 'Аяқтау және кері байланыс'}</button>
+        </div>
+      )}
+
       <div className="fixed inset-x-0 bottom-0 border-t border-slate-200 bg-white p-3">
         <div className="mx-auto flex max-w-6xl items-center justify-end gap-2">
           {confirming ? (
@@ -366,7 +408,7 @@ export function SessionRunner(props: {
               <button className="btn btn-primary" onClick={submit} disabled={submitting}>{submitting ? 'Тапсырылуда…' : 'Иә, тапсыру'}</button>
             </>
           ) : (
-            <button className="btn btn-primary" onClick={() => setConfirming(true)}>Аяқтау</button>
+            <button className="btn btn-primary" onClick={() => setConfirming(true)}>{props.objective ? 'Тоқтату және кері байланыс' : 'Аяқтау'}</button>
           )}
         </div>
       </div>

@@ -27,6 +27,7 @@ export default async function PracticePage() {
     <div className="mx-auto max-w-2xl space-y-4">
       <h1 className="text-2xl font-semibold">БЖБ / ТЖБ дайындығы</h1>
       <p className="text-slate-600">БЖБ — параметрлерді өзіңіз таңдайсыз. ТЖБ — спецификация бойынша 35 балдық нұсқа: құрылымы тұрақты, есептері әр жолы кездейсоқ ауысады.</p>
+      <p className="text-sm"><a href="/objectives" className="text-blue-600 underline">Оқу мақсаты бойынша бейімделетін дайындық →</a></p>
       <PracticeForm units={units.map(({ id, grade, term, title }) => ({ id, grade, term, title }))} defaultGrade={profile.current_grade ?? 7} specs={specs} />
     </div>
   );

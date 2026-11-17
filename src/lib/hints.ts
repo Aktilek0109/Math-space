@@ -15,7 +15,7 @@ export function hintFactor(hintsUsed: number | null | undefined): number {
 }
 
 /** Оқу мақсаты бойынша бағыт (1-саты) */
-const OBJ_HINT: Record<string, string> = {
+export const OBJ_HINT: Record<string, string> = {
   '8.2.1.2': 'Толық квадратты бөліп алыңыз: $x^2+bx+c=\\left(x+\\frac b2\\right)^2+c-\\frac{b^2}{4}$.',
   '8.2.1.3': 'Квадрат үшмүшенің түбірлерін тауып, $ax^2+bx+c=a(x-x_1)(x-x_2)$ формуласын қолданыңыз.',
   '8.2.2.1': 'Теңдеуді $ax^2+bx+c=0$ түріне келтіріп, $a$, $b$, $c$ коэффициенттерін анықтаңыз.',

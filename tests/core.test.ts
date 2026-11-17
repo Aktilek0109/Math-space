@@ -199,3 +199,21 @@ test('қателермен жұмыс: аралық кестесі және ке
   n = nextReview({ stage: 3, correct_streak: 2 }, false, t0); assert.equal(n.stage, 0); assert.equal(n.correct_streak, 0);
   assert.equal(hintFactor(0), 1); assert.equal(hintFactor(1), 0.75); assert.equal(hintFactor(2), 0.5); assert.equal(hintFactor(5), 0.5);
 });
+
+import { decide, type Outcome } from '../src/lib/objective-rules.ts';
+test('М3: бейімделу — 2 дұрыс → жоғары, 2 қате → төмен, меңгеру шарты', () => {
+  const L = [1, 2, 3];
+  const o = (level: number, ratio: number, hints = 0): Outcome => ({ level, ratio, hints, revealed: true });
+  assert.equal(decide([o(1, 1)], L).level, 1);
+  assert.equal(decide([o(1, 1), o(1, 1)], L).level, 2);
+  assert.equal(decide([o(1, 1), o(1, 1, 1)], L).level, 1, 'көмекпен шыққаны көтермейді');
+  assert.equal(decide([o(1, 1), o(1, 1), o(2, 0.2), o(2, 0)], L).level, 1);
+  // 6 есеп, соңғы 5 орташа ≥80%, бірақ күрделі деңгей жоқ → меңгерілмейді, күрделіге жібереді
+  const noTop = [o(1, 1), o(1, 1), o(2, 1), o(2, 0.9), o(2, 0.9), o(2, 0.9)];
+  const d1 = decide(noTop, L); assert.equal(d1.done, false); assert.equal(d1.level, 3);
+  const withTop = [o(1, 1), o(1, 1), o(2, 1), o(2, 1), o(3, 1), o(3, 0.8)];
+  assert.deepEqual(decide(withTop, L), { done: true, reason: 'mastered', level: 3 });
+  assert.equal(decide(Array.from({ length: 15 }, () => o(1, 0.3)), L).reason, 'limit');
+  // тек 1–2 деңгей бар мақсатта күрделі талап етілмейді
+  assert.equal(decide([o(1, 1), o(1, 1), o(2, 1), o(2, 1), o(2, 1), o(2, 1)], [1, 2]).reason, 'mastered');
+});

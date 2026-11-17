@@ -20,6 +20,7 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
     throw e;
   }
   if (view.finished || !view.isOwner) redirect(`/results/${sessionId}`);
+  const pj = view.session.parameters_json as { purpose?: string; code?: string; text?: string } | null | undefined;
 
   return (
     <>
@@ -30,7 +31,8 @@ export default async function SessionPage({ params, searchParams }: { params: Pr
     )}
     <SessionRunner
       sessionId={sessionId}
-      title={(view.session.parameters_json as { purpose?: string } | null | undefined)?.purpose === 'review' ? 'Қателермен жұмыс' : `${EXAM_LABEL[view.session.exam_type]} · ${view.session.grade}-сынып`}
+      title={pj?.purpose === 'review' ? 'Қателермен жұмыс' : pj?.purpose === 'objective' ? 'Оқу мақсаты бойынша дайындық' : `${EXAM_LABEL[view.session.exam_type]} · ${view.session.grade}-сынып`}
+      objective={pj?.purpose === 'objective' ? { code: String(pj.code ?? ''), text: String(pj.text ?? '') } : null}
       mode={view.session.mode}
       deadline={view.session.deadline_at}
       totalMarks={Number(view.session.total_marks)}

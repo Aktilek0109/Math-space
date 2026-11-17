@@ -10,6 +10,7 @@ const NAV = [
   { href: '/library', label: 'Кітапхана' },
   { href: '/homework', label: 'Үй жұмысы' },
   { href: '/practice', label: 'БЖБ/ТЖБ' },
+  { href: '/objectives', label: 'Оқу мақсаттары' },
   { href: '/review', label: 'Қателермен жұмыс' },
   { href: '/mesk', label: 'МЭСК' },
   { href: '/results', label: 'Нәтижелер' },

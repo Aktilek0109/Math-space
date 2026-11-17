@@ -8,6 +8,8 @@ import { MathText } from '@/components/MathText';
 import { Figure, Figures } from '@/components/Figure';
 import { ManualGrade } from './ManualGrade';
 import { MarkScheme } from '@/components/MarkScheme';
+import { objectiveFeedback } from '@/lib/objective';
+import { StartObjective } from '@/app/(app)/objectives/StartObjective';
 
 function showResponse(r: { choice?: string; choices?: string[]; value?: string; text?: string; parts?: Record<string, string> } | null) {
   if (!r) return '—';
@@ -38,12 +40,16 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
     feedback_json: { by_unit?: { unit_id: string; title: string; earned: number; possible: number }[] };
   };
   const staff = isStaff(profile) && !view.isOwner;
+  const pj = (view.session.parameters_json ?? {}) as Record<string, unknown>;
+  const fb = pj.purpose === 'objective' ? await objectiveFeedback(id, view.session.owner_id, pj) : null;
+  const LV: Record<number, string> = { 1: 'Жеңіл', 2: 'Орта', 3: 'Күрделі' };
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <Link href="/results" className="text-sm text-brand-600 hover:underline">← Барлық нәтижелер</Link>
       <header className="card">
-        <h1 className="text-xl font-semibold">{EXAM_LABEL[view.session.exam_type]} · {view.session.grade}-сынып</h1>
+        <h1 className="text-xl font-semibold">{fb ? 'Оқу мақсаты бойынша дайындық' : pj.purpose === 'review' ? 'Қателермен жұмыс' : EXAM_LABEL[view.session.exam_type]} · {view.session.grade}-сынып</h1>
+        {fb && <p className="mt-1 text-sm text-slate-600"><span className="font-mono text-xs">{fb.code}</span> <MathText text={fb.text} /></p>}
         {r && (
           <div className="mt-3 flex flex-wrap items-end gap-6">
             <div><div className="text-4xl font-bold">{Number(r.percent)}%</div><div className="text-sm text-slate-500">{Number(r.marks_earned)} / {Number(r.marks_possible)} ұпай</div></div>
@@ -54,7 +60,59 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
         <p className="mt-2 text-xs text-slate-500">Бұл — дайындық нәтижесі. Ресми баға шегі тек тексерілген кесте енгізілгенде қолданылады.</p>
       </header>
 
-      {r?.feedback_json?.by_unit && r.feedback_json.by_unit.length > 0 && (
+      {fb && (
+        <section className={`card space-y-4 ${fb.mastered ? 'border-emerald-300' : ''}`}>
+          <h2 className="font-semibold">Кері байланыс</h2>
+          <div className="flex flex-wrap items-center gap-6">
+            <div>
+              <div className="text-sm text-slate-500">Мақсатты меңгеру</div>
+              <div className="text-2xl font-bold">{fb.startPct == null ? '—' : `${fb.startPct}%`} → {fb.endPct == null ? '—' : `${fb.endPct}%`}</div>
+            </div>
+            <div className={`rounded-full px-3 py-1 text-sm font-medium ${fb.mastered ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+              {fb.mastered ? '✓ Меңгерілді' : 'Әлі меңгерілген жоқ'}
+            </div>
+            <div className="text-sm text-slate-600">Көмек: {fb.hintsUsed} рет</div>
+          </div>
+          <div>
+            <h3 className="mb-1 text-sm font-medium">Деңгейлер бойынша</h3>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {fb.levels.map((l) => {
+                const p = l.n ? Math.round((l.ok / l.n) * 100) : null;
+                return (
+                  <div key={l.level} className="rounded-lg border border-slate-200 p-2 text-sm">
+                    <div className="flex justify-between"><span>{LV[l.level] ?? l.level}</span><span className="text-slate-500">{l.n ? `${l.ok}/${l.n}` : 'берілмеді'}</span></div>
+                    <div className="mt-1 h-2 overflow-hidden rounded bg-slate-100"><div className={`h-full ${p == null ? '' : p >= 80 ? 'bg-emerald-500' : p >= 50 ? 'bg-amber-400' : 'bg-red-500'}`} style={{ width: `${p ?? 0}%` }} /></div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          {fb.stepErrors.length > 0 && (
+            <div>
+              <h3 className="mb-1 text-sm font-medium">Шешім жолындағы жиі қателер</h3>
+              <ul className="list-disc space-y-0.5 pl-5 text-sm">{fb.stepErrors.map((e) => <li key={e.reason}><MathText text={e.reason} /> <span className="text-slate-500">×{e.n}</span></li>)}</ul>
+            </div>
+          )}
+          <div>
+            <h3 className="mb-1 text-sm font-medium">Не істеу керек</h3>
+            <ul className="list-disc space-y-1 pl-5 text-sm">{fb.advice.map((a) => <li key={a}><MathText text={a} /></li>)}</ul>
+          </div>
+          {view.isOwner && (
+            <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3">
+              <StartObjective objectiveId={fb.objectiveId} label={fb.mastered ? 'Тағы бекіту' : 'Қайта бастау'} />
+              <Link href="/review" className="btn btn-secondary text-sm">Қателермен жұмыс</Link>
+              {fb.next && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-slate-500">Келесі мақсат: <span className="font-mono text-xs">{fb.next.code}</span>{fb.next.pct != null ? ` (${fb.next.pct}%)` : ''}</span>
+                  <StartObjective objectiveId={fb.next.id} label="Бастау →" />
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      )}
+
+      {!fb && r?.feedback_json?.by_unit && r.feedback_json.by_unit.length > 0 && (
         <section className="card">
           <h2 className="mb-2 font-semibold">Бөлімдер кесіндісі</h2>
           <ul className="space-y-1 text-sm">
@@ -107,7 +165,7 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
       })}
 
       <div className="flex gap-2">
-        <Link href={view.session.exam_type === 'MESK' ? '/mesk/mock/new' : '/practice'} className="btn btn-primary">Жаңа нұсқа</Link>
+        <Link href={fb ? '/objectives' : view.session.exam_type === 'MESK' ? '/mesk/mock/new' : '/practice'} className="btn btn-primary">{fb ? 'Барлық мақсаттар' : 'Жаңа нұсқа'}</Link>
         <Link href="/library" className="btn btn-secondary">Қайта дайындалу</Link>
       </div>
     </div>
