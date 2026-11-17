@@ -17,6 +17,7 @@ export interface Assignment {
   description: string;
   grade: number;
   class_id: string | null;
+  student_id?: string | null;
   material_id: string | null;
   due_at: string | null;
   max_score: number;
@@ -25,7 +26,12 @@ export interface Assignment {
 }
 
 /** Тапсырманы алушы оқушылар: сынып (class) берілсе — оның мүшелері, әйтпесе сол параллельдің барлық белсенді оқушылары. */
-export async function assignmentStudents(admin: SupabaseClient, a: Pick<Assignment, 'grade' | 'class_id'>) {
+export async function assignmentStudents(admin: SupabaseClient, a: Pick<Assignment, 'grade' | 'class_id'> & { student_id?: string | null }) {
+  // Жеке үй жұмысы (М5): тек бір оқушыға
+  if (a.student_id) {
+    const { data } = await admin.from('profiles').select('id, username, full_name, is_active').eq('id', a.student_id);
+    return (data ?? []) as { id: string; username: string; full_name: string; is_active: boolean }[];
+  }
   if (a.class_id) {
     const { data } = await admin
       .from('class_members')

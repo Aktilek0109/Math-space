@@ -13,7 +13,7 @@ export default async function AdminHomeworkItem({ params }: { params: Promise<{ 
   const admin = createAdminClient();
   const { data: a } = await admin
     .from('assignments')
-    .select('id, title, description, grade, class_id, due_at, max_score, mode, classes(name)')
+    .select('id, title, description, grade, class_id, student_id, due_at, max_score, mode, classes(name)')
     .eq('id', id)
     .maybeSingle();
   if (!a) notFound();

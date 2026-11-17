@@ -18,38 +18,11 @@ export { MASTERY, MIN_ITEMS, MAX_ITEMS } from './objective-rules.ts';
 
 export interface Mastery { pct: number; n: number }
 
-/** Оқушының оқу мақсаттары бойынша меңгеруі (соңғы 10 дәлел, жаңасына салмақ көп). */
+/** Оқушының оқу мақсаттары бойынша меңгеруі — ортақ SQL формуласы (М5.3, `objective_mastery`). */
 export async function objectiveMastery(admin: SupabaseClient, studentId: string): Promise<Map<string, Mastery>> {
-  const { data: resp } = await admin
-    .from('responses')
-    .select('awarded_marks, updated_at, practice_items!inner(question_id, max_marks)')
-    .eq('user_id', studentId).not('awarded_marks', 'is', null)
-    .order('updated_at', { ascending: false }).limit(3000);
-  const rows = ((resp ?? []) as unknown as { awarded_marks: number; updated_at: string; practice_items: { question_id: string | null; max_marks: number } }[])
-    .filter((r) => r.practice_items?.question_id);
-  const qids = [...new Set(rows.map((r) => r.practice_items.question_id!))];
-  const objByQ = new Map<string, { objective_id: string; weight: number }[]>();
-  for (let i = 0; i < qids.length; i += 300) {
-    const { data } = await admin.from('question_objectives').select('question_id, objective_id, weight').in('question_id', qids.slice(i, i + 300));
-    for (const o of (data ?? []) as { question_id: string; objective_id: string; weight: number }[]) {
-      const l = objByQ.get(o.question_id) ?? []; l.push(o); objByQ.set(o.question_id, l);
-    }
-  }
-  const ev = new Map<string, { e: number; p: number }[]>();
-  for (const r of rows) {   // жаңасынан ескісіне
-    for (const o of objByQ.get(r.practice_items.question_id!) ?? []) {
-      const l = ev.get(o.objective_id) ?? [];
-      if (l.length < 10) l.push({ e: Number(r.awarded_marks) * Number(o.weight), p: Number(r.practice_items.max_marks) * Number(o.weight) });
-      ev.set(o.objective_id, l);
-    }
-  }
-  const out = new Map<string, Mastery>();
-  for (const [obj, l] of ev) {
-    let se = 0, sp = 0;
-    l.forEach((x, k) => { const w = 1 - 0.05 * k; se += w * x.e; sp += w * x.p; });
-    out.set(obj, { pct: sp > 0 ? Math.round((se / sp) * 100) : 0, n: l.length });
-  }
-  return out;
+  const { data, error } = await admin.rpc('objective_mastery', { p_students: [studentId], p_source: 'all', p_since: null });
+  if (error) throw error;
+  return new Map(((data ?? []) as { objective_id: string; pct: number; n: number }[]).map((r) => [r.objective_id, { pct: r.pct, n: r.n }]));
 }
 
 async function poolFor(admin: SupabaseClient, objectiveId: string, grade: number) {

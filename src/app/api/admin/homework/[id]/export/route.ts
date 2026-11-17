@@ -12,7 +12,7 @@ export const GET = handler(async (_req: Request, ctx: { params: Promise<{ id: st
   await apiUser(['teacher', 'admin']);
   const { id } = await ctx.params;
   const admin = createAdminClient();
-  const { data: a } = await admin.from('assignments').select('id, title, description, grade, class_id, due_at, max_score').eq('id', id).maybeSingle();
+  const { data: a } = await admin.from('assignments').select('id, title, description, grade, class_id, student_id, due_at, max_score').eq('id', id).maybeSingle();
   if (!a) throw new ApiError(404, 'Тапсырма табылмады');
   const { data: key } = await admin.from('assignment_keys').select('answer_text').eq('assignment_id', id).maybeSingle();
   const students = await assignmentStudents(admin, a);

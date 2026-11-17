@@ -233,3 +233,11 @@ test('М4: жоғалған балл жолдары және себебі', () =
   const n = itemLoss({ type: 'numeric', body: { text: 'x' } as never, key: { value: 3 }, solutionText: '', max: 1, awarded: 0, response: null, hints: 0, pending: false });
   assert.equal(n.reasons[0], 'Жауап жазылмаған');
 });
+
+import { band, personalEligible, personalLevels, isDrop } from '../src/lib/heatmap-rules.ts';
+test('М5: түстер шкаласы және жеке үй жұмысына іріктеу', () => {
+  assert.deepEqual([null, 0, 39, 40, 64, 65, 79, 80, 100].map(band), ['none', 'red', 'red', 'orange', 'orange', 'yellow', 'yellow', 'green', 'green']);
+  assert.deepEqual([null, 20, 50, 70, 90].map(personalEligible), [false, true, true, false, false]);
+  assert.deepEqual(personalLevels(30), [1, 2]);
+  assert.equal(isDrop(60, 70), true); assert.equal(isDrop(68, 70), false); assert.equal(isDrop(60, null), false);
+});

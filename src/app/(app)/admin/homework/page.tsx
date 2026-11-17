@@ -12,7 +12,7 @@ export default async function AdminHomework() {
   await requireRole(['teacher', 'admin']);
   const supabase = await createClient();
   const [{ data: list }, { data: classes }, { data: materials }] = await Promise.all([
-    supabase.from('assignments').select('id, title, grade, due_at, max_score, class_id, mode, classes(name)').order('created_at', { ascending: false }).limit(200),
+    supabase.from('assignments').select('id, title, grade, due_at, max_score, class_id, student_id, mode, classes(name), profiles!assignments_student_id_fkey(full_name, username)').order('created_at', { ascending: false }).limit(200),
     supabase.from('classes').select('id, name, grade').order('grade').order('name'),
     supabase.from('materials').select('id, title, grade').eq('status', 'published').order('grade').order('sort_order').limit(1000),
   ]);
@@ -46,7 +46,7 @@ export default async function AdminHomework() {
             <Link key={a.id} href={`/admin/homework/${a.id}`} className="card flex flex-wrap items-center justify-between gap-2 hover:border-brand-500">
               <div>
                 <div className="font-medium">{(a as { mode?: string }).mode === 'tasks' ? '🎯 ' : ''}{a.title}</div>
-                <div className="text-xs text-slate-500">{cls ?? `${a.grade}-сынып (барлығы)`} · мерзімі: {fmtDue(a.due_at)}</div>
+                <div className="text-xs text-slate-500">{(() => { const st = (a as unknown as { profiles: { full_name: string; username: string } | null }).profiles; return st ? `👤 жеке: ${st.full_name || st.username} · ` : ''; })()}{cls ?? `${a.grade}-сынып (барлығы)`} · мерзімі: {fmtDue(a.due_at)}</div>
               </div>
               <div className="flex gap-2 text-xs">
                 <span className="chip">Тапсырғаны: {v.sent}</span>

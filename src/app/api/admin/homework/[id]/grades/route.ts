@@ -28,7 +28,7 @@ export const POST = handler(async (req: Request, ctx: { params: Promise<{ id: st
   const { id } = await ctx.params;
   const { csv } = await parseBody(req, body);
   const admin = createAdminClient();
-  const { data: a } = await admin.from('assignments').select('grade, class_id, max_score').eq('id', id).maybeSingle();
+  const { data: a } = await admin.from('assignments').select('grade, class_id, student_id, max_score').eq('id', id).maybeSingle();
   if (!a) throw new ApiError(404, 'Тапсырма табылмады');
   const students = await assignmentStudents(admin, a);
   const byLogin = new Map(students.map((s) => [s.username.toLowerCase(), s.id]));

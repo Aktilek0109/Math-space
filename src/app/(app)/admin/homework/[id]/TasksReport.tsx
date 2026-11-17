@@ -22,7 +22,7 @@ interface Att {
 }
 
 /** ТЗ 14.5: әр оқу мақсаты бойынша дербес / көмекпен орындалған тапсырмалар, қайталанған қате, дәлел жолдары. */
-export async function TasksReport({ a }: { a: { id: string; title: string; description: string; grade: number; class_id: string | null; due_at: string | null; max_score: number; classes: { name: string } | null } }) {
+export async function TasksReport({ a }: { a: { id: string; title: string; description: string; grade: number; class_id: string | null; student_id?: string | null; due_at: string | null; max_score: number; classes: { name: string } | null } }) {
   const admin = createAdminClient();
   const [{ data: itemsRaw }, students, { data: attsRaw }, { data: subs }] = await Promise.all([
     admin.from('homework_items')
