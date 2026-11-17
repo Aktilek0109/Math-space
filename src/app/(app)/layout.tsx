@@ -41,7 +41,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-dvh lg:flex">
-      <aside className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50/95 backdrop-blur lg:h-dvh lg:w-60 lg:shrink-0 lg:border-b-0 lg:border-r lg:bg-transparent">
+      <aside className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50 lg:h-dvh lg:w-60 lg:shrink-0 lg:border-b-0 lg:border-r lg:bg-transparent">
         {/* Телефон: логотип + ☰ */}
         <div className="flex min-h-14 items-center justify-between gap-3 px-3 py-1.5 lg:hidden">
           <MobileMenu due={due}>
