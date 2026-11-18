@@ -21,13 +21,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const today = todayAlmaty();
   const nowIso = new Date().toISOString();
 
-  const [{ data: sessions }, { data: lastLessons }, { data: dueRows }, { data: mastery }, { data: hw }, { data: subs }] = await Promise.all([
+  const [{ data: sessions }, { data: lastLessons }, { data: dueRows }, { data: mastery }, { data: hw }] = await Promise.all([
     supabase.from('practice_sessions').select('id, exam_type, status, created_at, parameters_json, results(percent)').eq('owner_id', profile.id).order('created_at', { ascending: false }).limit(5),
     supabase.from('lessons').select(LESSON_SELECT).lte('lesson_date', today).order('lesson_date', { ascending: false }).order('created_at').limit(6),
     supabase.from('mistakes').select('id, topics(title)').eq('student_id', profile.id).eq('status', 'active').lte('due_at', nowIso).limit(20),
     supabase.rpc('objective_mastery', { p_students: [profile.id], p_source: 'all', p_since: null }),
     supabase.from('assignments').select('id, title, due_at').eq('status', 'published').gte('due_at', nowIso).order('due_at').limit(4),
-    supabase.from('submissions').select('assignment_id, submitted_at').eq('student_id', profile.id),
   ]);
   const ll = (lastLessons ?? []) as unknown as LessonRow[];
   const lessonDay = ll[0]?.lesson_date;
@@ -38,8 +37,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const m = ((mastery ?? []) as { objective_id: string; pct: number; n: number }[]).sort((a, b) => a.pct - b.pct).slice(0, 4);
   const { data: objs } = m.length ? await supabase.from('learning_objectives').select('id, code, text').in('id', m.map((x) => x.objective_id)) : { data: [] };
   const objMap = new Map(((objs ?? []) as { id: string; code: string; text: string }[]).map((o) => [o.id, o]));
-  const submitted = new Set(((subs ?? []) as { assignment_id: string; submitted_at: string | null }[]).filter((s) => s.submitted_at).map((s) => s.assignment_id));
-  const openHw = ((hw ?? []) as { id: string; title: string; due_at: string }[]).filter((a) => !submitted.has(a.id)).slice(0, 3);
+  const openHw = ((hw ?? []) as { id: string; title: string; due_at: string }[]).slice(0, 3);
   const name = (profile.full_name || profile.username).split(/\s+/)[0];
   const roleLabel = profile.role === 'admin' ? 'Әкімші' : profile.role === 'teacher' ? 'Мұғалім' : 'Оқушы';
 
@@ -116,17 +114,16 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
         <div className="flex min-w-0 flex-col gap-5">
           <section className="card space-y-3">
-            <h2 className="text-[17px] font-semibold">Үй жұмысы</h2>
+            <div className="flex items-center justify-between gap-2"><h2 className="text-[17px] font-semibold">Үй тапсырмасы</h2><Link href="/homework" className="text-sm text-brand-600 hover:underline">Барлығы</Link></div>
             {openHw.length ? (
               <ul className="space-y-3">
                 {openHw.map((a) => (
                   <li key={a.id} className="flex items-center justify-between gap-3">
                     <Link href={`/homework/${a.id}`} className="min-w-0 font-medium hover:underline"><span className="block truncate">{a.title}</span><span className="block text-xs font-normal text-slate-500">Мерзімі: {fmtDue(a.due_at)}</span></Link>
-                    <span className="chip">Тапсырылмаған</span>
                   </li>
                 ))}
               </ul>
-            ) : <p className="text-sm text-slate-500">Мерзімі жақын үй жұмысы жоқ.</p>}
+            ) : <p className="text-sm text-slate-500">Ағымдағы үй тапсырмасы жоқ.</p>}
           </section>
 
           <section className="card">

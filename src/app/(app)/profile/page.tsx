@@ -65,13 +65,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const teachClasses = ((teach ?? []) as unknown as { classes: { id: string; name: string; grade: number; class_members: { count: number }[] } | null }[]).map((t) => t.classes).filter(Boolean) as { id: string; name: string; grade: number; class_members: { count: number }[] }[];
   const teachers = [...new Map(((myTeachers ?? []) as unknown as { profiles: { id: string; full_name: string; username: string; subject: string | null; avatar_path: string | null; office_hours: string | null } | null }[]).map((t) => t.profiles).filter(Boolean).map((t) => [t!.id, t!])).values()];
 
-  const [{ data: subs }, { data: sessions }, { data: views }] = await Promise.all([
-    supabase
-      .from('submissions')
-      .select('submitted_at, score, graded_at, feedback, assignments(id, title, due_at, max_score)')
-      .eq('student_id', uid)
-      .order('created_at', { ascending: false })
-      .limit(50),
+  const [{ data: sessions }, { data: views }] = await Promise.all([
     supabase
       .from('practice_sessions')
       .select('id, exam_type, grade, status, created_at, results(percent, marks_earned, marks_possible)')
@@ -85,12 +79,6 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
       .order('viewed_at', { ascending: false })
       .limit(8),
   ]);
-
-  type Sub = { submitted_at: string | null; score: number | null; graded_at: string | null; feedback: string | null; assignments: { id: string; title: string; due_at: string | null; max_score: number } | null };
-  const hw = (subs ?? []) as unknown as Sub[];
-  const sent = hw.filter((s) => s.submitted_at).length;
-  const gradedHw = hw.filter((s) => s.score != null && s.assignments);
-  const hwAvg = gradedHw.length ? Math.round((gradedHw.reduce((t, s) => t + Number(s.score) / Number(s.assignments!.max_score), 0) / gradedHw.length) * 100) : null;
 
   const pct = (s: { results: unknown }) => {
     const r = (Array.isArray(s.results) ? s.results[0] : s.results) as { percent: number } | null | undefined;
@@ -230,30 +218,12 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
 
       {p.role === 'student' && (
         <>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <div className="card"><div className="text-sm text-slate-500">Тапсырылған үй жұмысы</div><div className="text-2xl font-semibold">{sent}</div></div>
-            <div className="card"><div className="text-sm text-slate-500">Үй жұмысының орташа бағасы</div><div className="text-2xl font-semibold">{hwAvg != null ? `${hwAvg}%` : '—'}</div></div>
+          <div className="grid grid-cols-2 gap-3">
             <div className="card"><div className="text-sm text-slate-500">БЖБ/ТЖБ жаттығулары</div><div className="text-2xl font-semibold">{done.length}</div></div>
             <div className="card"><div className="text-sm text-slate-500">Жаттығудың орташа нәтижесі</div><div className="text-2xl font-semibold">{testAvg != null ? `${testAvg}%` : '—'}</div></div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <section className="card">
-              <h2 className="mb-2 font-semibold">Үй жұмыстары</h2>
-              {hw.length === 0 ? <p className="text-sm text-slate-500">Әзірге жоқ.</p> : (
-                <ul className="divide-y divide-slate-100 text-sm">
-                  {hw.slice(0, 10).map((s, i) => s.assignments && (
-                    <li key={i} className="flex items-center justify-between gap-2 py-2">
-                      <Link href={viewingOther ? `/admin/homework/${s.assignments.id}` : `/homework/${s.assignments.id}`} className="hover:underline">{s.assignments.title}</Link>
-                      <span className="shrink-0 text-slate-600">
-                        {s.score != null ? `${Number(s.score)}/${Number(s.assignments.max_score)}` : s.submitted_at ? 'тексерілуде' : 'тапсырылмаған'}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
             <section className="card">
               <h2 className="mb-2 font-semibold">Соңғы жаттығулар</h2>
               {done.length === 0 ? (

@@ -12,7 +12,7 @@ const NAV = [
   { href: '/dashboard', label: 'Басты бет' },
   { href: '/lessons', label: 'Сабақтар' },
   { href: '/library', label: 'Кітапхана' },
-  { href: '/homework', label: 'Үй жұмысы' },
+  { href: '/homework', label: 'Үй тапсырмасы' },
   { href: '/practice', label: 'БЖБ/ТЖБ' },
   { href: '/objectives', label: 'Оқу мақсаттары' },
   { href: '/review', label: 'Қателермен жұмыс' },

@@ -7,7 +7,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: '/admin', label: 'Шолу' },
     { href: '/admin/materials', label: 'Материалдар' },
     { href: '/admin/lessons', label: 'Сабақ журналы' },
-    { href: '/admin/homework', label: 'Үй жұмысы' },
+    { href: '/admin/homework', label: 'Үй тапсырмасы' },
     { href: '/admin/progress', label: 'Мониторинг' },
     { href: '/admin/heatmap', label: 'Жылу картасы' },
     { href: '/admin/questions', label: 'Есептер' },
