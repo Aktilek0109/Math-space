@@ -3,6 +3,7 @@ import { handler, json, ApiError } from '@/lib/api';
 import { createAdminClient } from '@/lib/supabase/admin';
 import bzhbTopics from '@/data/bzhb-topics-2026-q2.json';
 import tzhbV2 from '@/data/tzhb-2026-q2-v2.json';
+import trig9Teacher from '@/data/trig9-teacher-2026-11-20.json';
 
 /**
  * Дайын есептер жинағын банкке бір рет жүктеу: GET /api/seed/bank?set=<жинақ>&token=<бір реттік токен>.
@@ -20,6 +21,7 @@ interface Row {
 const SETS: Record<string, { rows: unknown; source: string }> = {
   'bzhb-topics-2026-q2': { rows: bzhbTopics, source: 'Claude, БЖБ тақырыптар 2026-11-16' },
   'tzhb-2026-q2-v2': { rows: tzhbV2, source: 'Claude, ТЖБ 2026-11-16 v2' },
+  'trig9-teacher-2026-11-20': { rows: trig9Teacher, source: 'Claude, Тригонометрия: мұғалім материалдары 2026-11-20' },
 };
 
 const SUBJECT = '00000000-0000-0000-0000-000000000001';
