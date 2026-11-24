@@ -43,21 +43,27 @@ async function loadCandidates(
   admin: SupabaseClient,
   f: { grade: number; examType: 'BZhB' | 'TZhB' | 'MESK'; unitIds: string[]; topicIds?: string[]; component?: string },
 ) {
-  let q = admin
-    .from('questions')
-    .select('id, unit_id, body_json, question_type, marks, difficulty, question_topics(topic_id)')
-    .eq('status', 'published')
-    .eq('grade', f.grade)
-    .contains('exam_types', [f.examType])
-    .limit(2000);
-  if (f.unitIds.length) q = q.in('unit_id', f.unitIds);
-  if (f.component) q = q.eq('component', f.component);
-  const { data, error } = await q;
-  if (error) throw error;
-  let rows = (data ?? []) as unknown as QuestionRow[];
-  if (f.topicIds?.length) {
-    const wanted = new Set(f.topicIds);
-    rows = rows.filter((r) => r.question_topics.some((t) => wanted.has(t.topic_id)));
+  // PostgREST бір сұраныста ең көбі 1000 жол береді — банк үлкен, сондықтан бетпе-бет жүктейміз,
+  // ал тақырып сүзгісін базаның өзінде қолданамыз (әйтпесе тақырыптың есептері алғашқы 1000-ға кірмей қалады).
+  const topicSel = f.topicIds?.length ? 'question_topics!inner(topic_id)' : 'question_topics(topic_id)';
+  let rows: QuestionRow[] = [];
+  for (let from = 0; from < 20000; from += 1000) {
+    let q = admin
+      .from('questions')
+      .select(`id, unit_id, body_json, question_type, marks, difficulty, ${topicSel}`)
+      .eq('status', 'published')
+      .eq('grade', f.grade)
+      .contains('exam_types', [f.examType])
+      .order('id')
+      .range(from, from + 999);
+    if (f.unitIds.length) q = q.in('unit_id', f.unitIds);
+    if (f.component) q = q.eq('component', f.component);
+    if (f.topicIds?.length) q = q.in('question_topics.topic_id', f.topicIds);
+    const { data, error } = await q;
+    if (error) throw error;
+    const page = (data ?? []) as unknown as QuestionRow[];
+    rows = rows.concat(page);
+    if (page.length < 1000) break;
   }
   const byId = new Map(rows.map((r) => [r.id, r]));
   const candidates: Candidate[] = rows.map((r) => ({
