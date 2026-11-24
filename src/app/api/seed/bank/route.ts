@@ -6,6 +6,7 @@ import tzhbV2 from '@/data/tzhb-2026-q2-v2.json';
 import trig9Teacher from '@/data/trig9-teacher-2026-11-20.json';
 import level3 from '@/data/level3-2026-11-20.json';
 import seq9 from '@/data/seq9-2026-11-20.json';
+import g8levels from '@/data/g8-levels-2026-11-24.json';
 
 /**
  * Дайын есептер жинағын банкке бір рет жүктеу: GET /api/seed/bank?set=<жинақ>&token=<бір реттік токен>.
@@ -26,6 +27,7 @@ const SETS: Record<string, { rows: unknown; source: string }> = {
   'trig9-teacher-2026-11-20': { rows: trig9Teacher, source: 'Claude, Тригонометрия: мұғалім материалдары 2026-11-20' },
   'level3-2026-11-20': { rows: level3, source: 'Claude, 3-деңгей толықтыру 2026-11-20' },
   'seq9-2026-11-20': { rows: seq9, source: 'Claude, 9-сынып Тізбектер 2026-11-20' },
+  'g8-levels-2026-11-24': { rows: g8levels, source: 'Claude, 8-сынып 1/3-деңгей толықтыру 2026-11-24' },
 };
 
 const SUBJECT = '00000000-0000-0000-0000-000000000001';
