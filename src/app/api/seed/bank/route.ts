@@ -8,6 +8,7 @@ import level3 from '@/data/level3-2026-11-20.json';
 import seq9 from '@/data/seq9-2026-11-20.json';
 import g8levels from '@/data/g8-levels-2026-11-24.json';
 import g8t3 from '@/data/g8-t3-2026-11-24.json';
+import g8t14 from '@/data/g8-t14-2026-11-24.json';
 
 /**
  * Дайын есептер жинағын банкке бір рет жүктеу: GET /api/seed/bank?set=<жинақ>&token=<бір реттік токен>.
@@ -30,6 +31,7 @@ const SETS: Record<string, { rows: unknown; source: string }> = {
   'seq9-2026-11-20': { rows: seq9, source: 'Claude, 9-сынып Тізбектер 2026-11-20' },
   'g8-levels-2026-11-24': { rows: g8levels, source: 'Claude, 8-сынып 1/3-деңгей толықтыру 2026-11-24' },
   'g8-t3-2026-11-24': { rows: g8t3, source: 'Claude, 8-сынып 3-тоқсан 2026-11-24' },
+  'g8-t14-2026-11-24': { rows: g8t14, source: 'Claude, 8-сынып 1 және 4-тоқсан 2026-11-24' },
 };
 
 const SUBJECT = '00000000-0000-0000-0000-000000000001';
