@@ -2,6 +2,7 @@ import 'server-only';
 /** М5: мұғалімге сыныптың жылу картасы (оқушылар × оқу мақсаттары). */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createAdminClient } from './supabase/admin';
+import { rpcAll } from './rpc-all';
 
 export type Source = 'all' | 'exam' | 'homework' | 'practice';
 export const SOURCE_LABEL: Record<Source, string> = { all: 'Барлығы', exam: 'БЖБ/ТЖБ', homework: 'Үй жұмысы', practice: 'Жаттығу' };
@@ -34,7 +35,7 @@ export async function loadHeatmap(db: SupabaseClient, opts: { classId?: string; 
 
   const days = PERIODS[opts.period]?.days ?? null;
   const since = days ? new Date(Date.now() - days * 86_400_000).toISOString() : null;
-  const { data: m, error } = await db.rpc('objective_mastery', { p_students: students.map((s) => s.id), p_source: opts.source, p_since: since });
+  const { data: m, error } = await rpcAll(db, 'objective_mastery', { p_students: students.map((s) => s.id), p_source: opts.source, p_since: since }, ['student_id', 'objective_id']);
   if (error) throw error;
   const cells = new Map<string, Cell>();
   for (const r of (m ?? []) as { student_id: string; objective_id: string; pct: number; n: number; prev_pct: number | null; last_at: string | null }[])

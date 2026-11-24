@@ -25,8 +25,8 @@ export interface GradeOutcome {
 /** "3,5" → 3.5; "-7/2" → -3.5; бос/жарамсыз → null */
 export function parseNumber(raw: string | undefined | null): number | null {
   if (raw == null) return null;
-  // Калькулятордан келген LaTeX жауап (2\frac19, \frac{2\sqrt{13}}{13}, x=0{,}5)
-  if (/[\\{}=^]/.test(raw)) return evalLatexNumber(raw);
+  // Калькулятордан келген LaTeX жауап (2\frac19, \frac{2\sqrt{13}}{13}, x=0{,}5), сондай-ақ π, √ таңбалары
+  if (/[\\{}=^π√]/.test(raw)) return evalLatexNumber(raw.replace(/π/g, '\\pi').replace(/√/g, '\\sqrt'));
   const s = raw.trim().replace(/\s+/g, '').replace(',', '.').replace('−', '-');
   if (s === '') return null;
   const frac = /^(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)$/.exec(s);
@@ -41,6 +41,28 @@ export function parseNumber(raw: string | undefined | null): number | null {
 const normalizeText = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ').replace(',', '.');
 
 /** Серверлік тексеру (6-бөлім, 7-қадам). Ашық есептер pending-ке түседі. */
+/**
+ * Сандық жауапты кілтпен салыстыру.
+ * - кілт ± дәлдік;
+ * - «kπ түрінде жазылады, k-ны тап» есептерінде оқушы π-мен жазса (4π, \frac{2\pi}{9}) — π-ге бөліп салыстырамыз;
+ * - кілт шексіз ондық бөлшек (иррационал/периодты) болса, оқушы оны кемінде 2 таңбаға дейін дұрыс дөңгелектесе қабылданады (sin 3π/4 ≈ 0,71).
+ */
+export function numericMatches(raw: string | undefined | null, keyValue: number | undefined, tolerance?: number): boolean {
+  if (typeof keyValue !== 'number' || raw == null) return false;
+  const v = parseNumber(raw);
+  if (v === null) return false;
+  const tol = Math.max(tolerance ?? 0, 1e-9);
+  if (Math.abs(v - keyValue) <= tol) return true;
+  if (/π|\\pi/.test(raw) && Math.abs(v / Math.PI - keyValue) <= tol) return true;
+  const nonTerminating = Math.abs(keyValue * 1e4 - Math.round(keyValue * 1e4)) > 1e-6;
+  const dec = /^\s*[-−]?\d+(?:[.,]|\{,\})(\d+)\s*$/.exec(raw);
+  if (nonTerminating && dec && dec[1].length >= 2) {
+    const half = 0.5 * Math.pow(10, -dec[1].length);
+    if (Math.abs(v - keyValue) <= half + 1e-6) return true;
+  }
+  return false;
+}
+
 export function gradeResponse(
   type: QuestionType,
   key: AnswerKey,
@@ -60,9 +82,7 @@ export function gradeResponse(
       return { awarded: ok ? maxMarks : 0, state: 'auto', correct: ok };
     }
     case 'numeric': {
-      const v = parseNumber(r.value);
-      const tol = Math.max(key.tolerance ?? 0, 1e-9);
-      const ok = v !== null && typeof key.value === 'number' && Math.abs(v - key.value) <= tol;
+      const ok = numericMatches(r.value, typeof key.value === 'number' ? key.value : undefined, key.tolerance);
       return { awarded: ok ? maxMarks : 0, state: 'auto', correct: ok };
     }
     case 'short': {
@@ -83,8 +103,7 @@ export function gradeResponse(
         let ok = false;
         if (pk.correct !== undefined) ok = !!raw && raw === pk.correct;
         else if (typeof pk.value === 'number') {
-          const v = parseNumber(raw);
-          ok = v !== null && Math.abs(v - pk.value) <= Math.max(pk.tolerance ?? 0, 1e-9);
+          ok = numericMatches(raw, pk.value, pk.tolerance);
         }
         if (ok) awarded += partMarks[label] ?? maxMarks / labels.length;
         else all = false;

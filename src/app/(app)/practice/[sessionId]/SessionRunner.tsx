@@ -7,7 +7,7 @@ import { ErrorBox } from '@/components/ErrorBox';
 import { MarkScheme } from '@/components/MarkScheme';
 import { apiFetch, failureText } from '@/lib/client-api';
 import type { AnswerKey, PublicBody, QuestionType, RubricLine } from '@/lib/generator/types';
-import { parseNumber, type ResponseValue } from '@/lib/grading';
+import { numericMatches, type ResponseValue } from '@/lib/grading';
 import { MathNotebook } from '@/components/math/MathNotebook';
 import { answerFromLines } from '@/lib/latexnum';
 import { checkLines } from '@/lib/stepcheck';
@@ -296,8 +296,7 @@ export function SessionRunner(props: {
                   const val = a.parts?.[p.label] ?? '';
                   const setPart = (v: string) => update(it.id, { parts: { ...(a.parts ?? {}), [p.label]: v } });
                   const pk = it.key?.answer.parts?.[p.label];
-                  const pv = parseNumber(val);
-                  const ok = pk && (pk.correct !== undefined ? val === pk.correct : pk.value !== undefined && pv !== null && Math.abs(pv - pk.value) <= Math.max(pk.tolerance ?? 0, 1e-9));
+                  const ok = pk && (pk.correct !== undefined ? val === pk.correct : numericMatches(val, pk.value, pk.tolerance));
                   return (
                     <li key={p.label} className="rounded-lg border border-slate-200 p-3">
                       <div className="flex items-start justify-between gap-2">

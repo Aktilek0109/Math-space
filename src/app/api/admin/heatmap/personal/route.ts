@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { defaultCriteria, objectiveQuestions, seenQuestionIds, type BankQuestion } from '@/lib/objectives';
 import { personalEligible, personalLevels } from '@/lib/heatmap-rules';
 import type { RubricLine } from '@/lib/generator/types';
+import { rpcAll } from '@/lib/rpc-all';
 
 const body = z.object({
   class_id: z.string().uuid(),
@@ -26,7 +27,7 @@ export const POST = handler(async (req: Request) => {
   if (!studentIds.length) throw new ApiError(400, 'Таңдалған оқушылар бұл сыныпта жоқ');
 
   // Меңгеруді серверде қайта есептеп, тек қызыл/қызғылт сары ұяшықтарды қалдырамыз
-  const { data: m, error } = await db.rpc('objective_mastery', { p_students: studentIds, p_source: 'all', p_since: null });
+  const { data: m, error } = await rpcAll(db, 'objective_mastery', { p_students: studentIds, p_source: 'all', p_since: null }, ['student_id', 'objective_id']);
   if (error) throw error;
   const pctOf = new Map(((m ?? []) as { student_id: string; objective_id: string; pct: number }[]).map((r) => [`${r.student_id}|${r.objective_id}`, r.pct]));
   const admin = createAdminClient();

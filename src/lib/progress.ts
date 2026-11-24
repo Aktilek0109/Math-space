@@ -1,6 +1,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { aggregate, adviceFor, type Advice, type Evidence, type Objective, type Stat } from './objectives';
+import { rpcAll } from './rpc-all';
 
 export interface TopicView { id: string; title: string; stat: Stat; objectiveIds: string[] }
 export interface UnitView {
@@ -16,7 +17,7 @@ export interface TermView { term: number; stat: Stat; units: UnitView[]; uncover
  */
 export async function loadProgress(db: SupabaseClient, studentId: string, grade: number) {
   const [{ data: ev, error }, { data: units }, { data: objs }, { data: tobj }] = await Promise.all([
-    db.rpc('objective_evidence', { p_student: studentId }),
+    rpcAll(db, 'objective_evidence', { p_student: studentId }, ['objective_id', 'source_id', 'question_id']),
     db.from('units').select('id, title, term, sort_order, topics(id, title, sort_order)').eq('grade', grade).order('term').order('sort_order'),
     db.from('learning_objectives').select('id, code, text, unit_id, sort_order').eq('grade', grade).order('sort_order'),
     db.from('topic_objectives').select('topic_id, objective_id'),

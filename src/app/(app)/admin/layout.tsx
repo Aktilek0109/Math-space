@@ -14,6 +14,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: '/admin/pending', label: 'Тексеру' },
     ...(profile.role === 'admin'
       ? [
+          { href: '/admin/classes', label: 'Сыныптар' },
           { href: '/admin/structure', label: 'Құрылым' },
           { href: '/admin/templates', label: 'Үлгілер' },
           { href: '/admin/users', label: 'Аккаунттар' },
