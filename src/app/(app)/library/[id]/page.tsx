@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
-import { MATERIAL_TYPES } from '@/lib/catalog';
+import { MATERIAL_TYPES, STAFF_ONLY_TYPES } from '@/lib/catalog';
 import { PdfViewer } from '@/components/PdfViewer';
 
 const PREVIEWABLE = ['application/pdf', 'image/png', 'image/jpeg'];
@@ -13,11 +13,12 @@ function fmtSize(b: number) {
 
 export default async function MaterialPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await requireUser();
+  const profile = await requireUser();
+  const isStaff = profile.role === 'teacher' || profile.role === 'admin';
   const supabase = await createClient();
   const { data: m } = await supabase
     .from('materials')
-    .select('id, title, description, grade, type, language, external_url, topic_id, units(title), topics(title), material_assets(id, original_name, mime_type, size_bytes, position, is_current)')
+    .select('id, title, description, grade, type, language, external_url, unit_id, topic_id, units(id, title, term), topics(id, title), material_assets(id, original_name, mime_type, size_bytes, position, is_current)')
     .eq('id', id)
     .maybeSingle();
   if (!m) notFound();
@@ -34,9 +35,61 @@ export default async function MaterialPage({ params }: { params: Promise<{ id: s
     relatedCount = count ?? 0;
   }
 
+  // Қайту жолы: материал жатқан папкаға (тақырып/бөлім) тікелей
+  const unit = m.units as unknown as { id: string; title: string; term: number | null } | null;
+  const topic = m.topics as unknown as { id: string; title: string } | null;
+  const lib = (p: Record<string, string | number | null | undefined>) => {
+    const q = new URLSearchParams();
+    Object.entries({ grade: m.grade, ...p }).forEach(([k, v]) => v != null && v !== '' && q.set(k, String(v)));
+    return `/library?${q.toString()}`;
+  };
+  const folderHref = topic && unit ? lib({ unit: unit.id, topic: topic.id }) : unit ? lib({ unit: unit.id }) : lib({});
+  const folderTitle = topic?.title ?? unit?.title ?? `${m.grade}-сынып кітапханасы`;
+
+  // Сол папкадағы басқа материалдар — қате ашса, бірден дұрысына өтуге болады
+  let siblings: { id: string; title: string; type: string }[] = [];
+  if (m.topic_id || m.unit_id) {
+    let sq = supabase.from('materials').select('id, title, type').eq('status', 'published').eq('grade', m.grade).order('sort_order').order('title');
+    sq = m.topic_id ? sq.eq('topic_id', m.topic_id) : sq.eq('unit_id', m.unit_id as string).is('topic_id', null);
+    siblings = ((await sq).data ?? []) as { id: string; title: string; type: string }[];
+    if (!isStaff) siblings = siblings.filter((x) => !STAFF_ONLY_TYPES.includes(x.type) || x.id === m.id);
+  }
+  const idx = siblings.findIndex((x) => x.id === m.id);
+  const prev = idx > 0 ? siblings[idx - 1] : null;
+  const next = idx >= 0 && idx < siblings.length - 1 ? siblings[idx + 1] : null;
+
   return (
     <article className="space-y-4">
-      <Link href={`/library?grade=${m.grade}`} className="text-sm text-brand-600 hover:underline">← {m.grade}-сынып кітапханасы</Link>
+      <div className="flex flex-wrap items-center gap-2">
+        <Link href={folderHref} className="btn btn-secondary text-sm">← {folderTitle}</Link>
+        <nav aria-label="Жол" className="flex flex-wrap items-center gap-1 text-sm text-slate-600">
+          <Link href={lib({})} className="hover:underline">{m.grade}-сынып</Link>
+          {unit?.term && (<><span>›</span><Link href={lib({ term: unit.term })} className="hover:underline">{unit.term}-тоқсан</Link></>)}
+          {unit && (<><span>›</span><Link href={lib({ unit: unit.id })} className="hover:underline">{unit.title}</Link></>)}
+          {topic && unit && (<><span>›</span><Link href={lib({ unit: unit.id, topic: topic.id })} className="hover:underline">{topic.title}</Link></>)}
+        </nav>
+      </div>
+      {(prev || next) && (
+        <div className="flex flex-wrap justify-between gap-2 text-sm">
+          {prev ? <Link href={`/library/${prev.id}`} className="btn btn-secondary max-w-[48%] truncate">‹ {prev.title}</Link> : <span />}
+          {next ? <Link href={`/library/${next.id}`} className="btn btn-secondary max-w-[48%] truncate">{next.title} ›</Link> : <span />}
+        </div>
+      )}
+      {siblings.length > 1 && (
+        <details className="card">
+          <summary className="cursor-pointer font-semibold">📂 Осы папкадағы материалдар ({siblings.length})</summary>
+          <ul className="mt-2 divide-y divide-slate-100">
+            {siblings.map((x) => (
+              <li key={x.id} className="py-1.5 text-sm">
+                {x.id === m.id
+                  ? <span className="font-semibold text-brand-600">▸ {x.title}</span>
+                  : <Link href={`/library/${x.id}`} className="hover:underline"><span className="chip mr-2">{MATERIAL_TYPES[x.type] ?? x.type}</span>{x.title}</Link>}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
       <header>
         <div className="flex flex-wrap gap-2">
           <span className="chip">{MATERIAL_TYPES[m.type] ?? m.type}</span>
