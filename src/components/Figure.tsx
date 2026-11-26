@@ -289,7 +289,7 @@ function Geometry({ f }: { f: GeometryFigure }) {
           return (
             <g key={`pt${n}`}>
               <circle cx={x} cy={y} r={2.6} fill={stroke} />
-              {!hidden && <text x={x + dir[0] * 14} y={y - dir[1] * 14 + 5} fontSize="15" fontStyle="italic" textAnchor="middle" fill={stroke} {...HALO}>{n}</text>}
+              {!hidden && <text x={x + dir[0] * 14} y={y - dir[1] * 14 + 5} fontSize="15" fontStyle="italic" textAnchor="middle" fill={stroke} {...HALO}>{n.includes('_') ? <>{n.split('_')[0]}<tspan fontSize="11" dy="4">{n.split('_')[1]}</tspan></> : n}</text>}
             </g>
           );
         })}
