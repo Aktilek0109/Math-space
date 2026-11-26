@@ -10,6 +10,7 @@ import g8levels from '@/data/g8-levels-2026-11-24.json';
 import g8t3 from '@/data/g8-t3-2026-11-24.json';
 import g8t14 from '@/data/g8-t14-2026-11-24.json';
 import g8t2kv from '@/data/g8-t2kv-2026-11-26.json';
+import mesk10v001 from '@/data/mesk10-v001-2026-11-26.json';
 
 /**
  * Дайын есептер жинағын банкке бір рет жүктеу: GET /api/seed/bank?set=<жинақ>&token=<бір реттік токен>.
@@ -22,6 +23,8 @@ interface Row {
   exam_types?: string[]; slot?: string | null;
   /** Бірнеше оқу мақсаты (код, салмақ) — болса, obj орнына қолданылады */
   objs?: [string, number][];
+  /** Балл қою кестесі: «M1: …» дескрипторлары */
+  rubric?: { descriptor: string; marks: number }[];
 }
 
 const SETS: Record<string, { rows: unknown; source: string }> = {
@@ -34,6 +37,7 @@ const SETS: Record<string, { rows: unknown; source: string }> = {
   'g8-t3-2026-11-24': { rows: g8t3, source: 'Claude, 8-сынып 3-тоқсан 2026-11-24' },
   'g8-t14-2026-11-24': { rows: g8t14, source: 'Claude, 8-сынып 1 және 4-тоқсан 2026-11-24' },
   'g8-t2kv-2026-11-26': { rows: g8t2kv, source: 'Claude, 8-сынып Квадрат теңдеулер 2026-11-26' },
+  'mesk10-v001-2026-11-26': { rows: mesk10v001, source: 'Мұғалім: МЭСК 10 сынақ нұсқасы 01' },
 };
 
 const SUBJECT = '00000000-0000-0000-0000-000000000001';
@@ -78,7 +82,7 @@ export const GET = handler(async (req: Request) => {
       source: set.source,
     })));
     if (q.error) throw q.error;
-    const k = await admin.from('question_keys').insert(part.map(({ r, id }) => ({ question_id: id, answer_json: r.answer, solution_json: r.solution })));
+    const k = await admin.from('question_keys').insert(part.map(({ r, id }) => ({ question_id: id, answer_json: r.answer, solution_json: r.solution, ...(r.rubric ? { rubric_json: r.rubric } : {}) })));
     if (k.error) throw k.error;
     const t = await admin.from('question_topics').insert(part.map(({ r, id }) => ({ question_id: id, topic_id: r.topic })));
     if (t.error) throw t.error;

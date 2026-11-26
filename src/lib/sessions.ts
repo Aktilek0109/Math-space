@@ -362,6 +362,10 @@ export async function buildMeskMock(profile: Profile, input: MeskMockInput) {
       .eq('is_active', true)
       .single();
     if (error || !bp) throw new ApiError(404, 'Формат (blueprint) табылмады');
+    // Мұғалімнің дайын нұсқасы: әр орын (slot) — questions.component, ретімен
+    if (((bp.distribution_json ?? []) as { slot?: string }[]).some((d) => d.slot)) {
+      return buildMeskSlotMock(admin, profile, input, bp);
+    }
     const dist = (bp.distribution_json ?? []) as { unit_ids?: string[]; count?: number; marks?: number; difficulty?: number }[];
     quotas = dist.map((d, i) => ({
       label: d.unit_ids?.length === 1 ? d.unit_ids[0] : `Бөлік ${i + 1}`,
@@ -429,6 +433,56 @@ export async function buildMeskMock(profile: Profile, input: MeskMockInput) {
       parameters_json: { ...input, component },
       seed,
       time_limit_min: timeLimit,
+    },
+    drafts,
+  );
+  return { preview: false as const, sessionId };
+}
+
+/** МЭСК: орындары (slot) бекітілген нұсқа — мұғалімнің сынақ нұсқасы сол ретімен. */
+async function buildMeskSlotMock(admin: SupabaseClient, profile: Profile, input: MeskMockInput, bp: any) {
+  const slots = (bp.distribution_json ?? []) as TzhbSlot[];
+  const { data, error } = await admin
+    .from('questions')
+    .select('id, unit_id, body_json, question_type, marks, difficulty, component, question_topics(topic_id)')
+    .eq('status', 'published')
+    .eq('grade', input.grade)
+    .contains('exam_types', ['MESK'])
+    .in('component', slots.map((s) => s.slot));
+  if (error) throw error;
+  const rows = (data ?? []) as unknown as (QuestionRow & { component: string })[];
+  const byId = new Map<string, QuestionRow>(rows.map((r) => [r.id, r]));
+  const seed = newSeed();
+  const rng = createRng(seed);
+  const picked: string[] = [];
+  const missing: string[] = [];
+  for (const s of slots) {
+    const pool = rows.filter((r) => r.component === s.slot && Number(r.marks) === Number(s.marks));
+    if (!pool.length) { missing.push(`${s.no}-есеп (${s.marks} балл)`); continue; }
+    picked.push(rng.pick(pool).id);
+  }
+  const total = slots.reduce((a, s) => a + Number(s.marks), 0);
+  if (input.preview) {
+    return {
+      preview: true as const,
+      availability: [{ unit_id: bp.id as string, title: bp.title as string, count: slots.length - missing.length, marks: total }],
+      total_available: slots.length - missing.length,
+      shortages: missing.map((m) => ({ message: `Банкте жоқ: ${m}` })),
+    };
+  }
+  if (missing.length) throw new ApiError(409, 'Нұсқаны құрастыру мүмкін емес: банкте есеп жоқ', { shortages: missing.map((m) => ({ message: m })) });
+  const drafts = await questionDrafts(admin, picked, byId);
+  const sessionId = await persistSession(
+    admin,
+    {
+      owner_id: profile.id,
+      exam_type: 'MESK',
+      mode: input.mode,
+      grade: input.grade,
+      blueprint_id: bp.id as string,
+      parameters_json: { ...input, component: bp.component, blueprint: bp.title, total_marks: total },
+      seed,
+      time_limit_min: (bp.duration_min as number) ?? input.time_limit_min ?? 90,
     },
     drafts,
   );
