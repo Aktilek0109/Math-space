@@ -14,11 +14,12 @@ export const MATERIAL_TYPES: Record<string, string> = {
   extra_problems: 'Қосымша есептер',
   link: 'Сілтеме',
   lesson_plan: 'ҚМЖ',
+  assessment: 'БЖБ/ТЖБ',
   other: 'Басқа',
 };
 
-/** ҚМЖ — тек мұғалім/әкімшіге (RLS оқушыдан жасырады) */
-export const STAFF_ONLY_TYPES = ['lesson_plan'];
+/** ҚМЖ және БЖБ/ТЖБ — тек мұғалім/әкімшіге (RLS оқушыдан жасырады) */
+export const STAFF_ONLY_TYPES = ['lesson_plan', 'assessment'];
 
 export interface UnitWithTopics {
   id: string;

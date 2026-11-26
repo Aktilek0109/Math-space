@@ -44,10 +44,12 @@ const body = z.discriminatedUnion('action', [
   z.object({ action: z.literal('finalize'), items: z.array(finalizeItem).min(1).max(25) }),
 ]);
 
-type MaterialType = 'lesson_plan' | 'presentation' | 'worksheet' | 'solution' | 'extra_problems' | 'theory' | 'other';
+type MaterialType = 'lesson_plan' | 'assessment' | 'presentation' | 'worksheet' | 'solution' | 'extra_problems' | 'theory' | 'other';
 function guessType(name: string): MaterialType {
   const n = name.toLowerCase();
   if (/^\s*[қк]мж/.test(n)) return 'lesson_plan';
+  // «БЖБ №1. …», «ТЖБ. 3-тоқсан …» — бағалау тапсырмалары оқушыдан жасырын
+  if (/^\s*(бжб|тжб)[\s.№-]/.test(n)) return 'assessment';
   if (n.includes('жауап')) return 'solution';
   if (n.includes('презентация') || /\.pptx$/.test(n)) return 'presentation';
   if (n.includes('жұмыс парағы')) return 'worksheet';
